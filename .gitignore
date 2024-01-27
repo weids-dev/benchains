@@ -16,11 +16,16 @@ vendor/
 
 # Go workspace file
 go.work
+go.sum
 
-# Fabric Certificates
+# Fabric
 networks/fabric/bin/
 networks/fabric/certs/
+networks/fabric/channel-artifacts/
+
+log.txt
 
 # MacOS
 *.DS_Store
+
 

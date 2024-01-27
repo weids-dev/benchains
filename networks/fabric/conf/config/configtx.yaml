@@ -1,0 +1,494 @@
+# Copyright IBM Corp. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+---
+################################################################################
+#
+#   Section: Organizations
+#
+#   - This section defines the different organizational identities which will
+#   be referenced later in the configuration.
+#
+################################################################################
+Organizations:
+  - &org01
+    Name: org01MSP
+    # ID to load the MSP definition as
+    ID: org01MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/peerOrganizations/org01.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('org01MSP.admin', 'org01MSP.peer', 'org01MSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('org01MSP.admin', 'org01MSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('org01MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('org01MSP.peer')"
+
+  - &org02
+    Name: org02MSP
+    # ID to load the MSP definition as
+    ID: org02MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/peerOrganizations/org02.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('org02MSP.admin', 'org02MSP.peer', 'org02MSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('org02MSP.admin', 'org02MSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('org02MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('org02MSP.peer')"
+
+  - &org03
+    Name: org03MSP
+    # ID to load the MSP definition as
+    ID: org03MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/peerOrganizations/org03.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('org03MSP.admin', 'org03MSP.peer', 'org03MSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('org03MSP.admin', 'org03MSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('org03MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('org03MSP.peer')"
+
+  - &org04
+    Name: org04MSP
+    # ID to load the MSP definition as
+    ID: org04MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/peerOrganizations/org04.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('org04MSP.admin', 'org04MSP.peer', 'org04MSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('org04MSP.admin', 'org04MSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('org04MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('org04MSP.peer')"
+
+  - &org05
+    Name: org05MSP
+    # ID to load the MSP definition as
+    ID: org05MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/peerOrganizations/org05.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('org05MSP.admin', 'org05MSP.peer', 'org05MSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('org05MSP.admin', 'org05MSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('org05MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('org05MSP.peer')"
+
+  - &org06
+    Name: org06MSP
+    # ID to load the MSP definition as
+    ID: org06MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/peerOrganizations/org06.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('org06MSP.admin', 'org06MSP.peer', 'org06MSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('org06MSP.admin', 'org06MSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('org06MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('org06MSP.peer')"
+
+  - &org07
+    Name: org07MSP
+    # ID to load the MSP definition as
+    ID: org07MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/peerOrganizations/org07.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('org07MSP.admin', 'org07MSP.peer', 'org07MSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('org07MSP.admin', 'org07MSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('org07MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('org07MSP.peer')"
+
+  - &org08
+    Name: org08MSP
+    # ID to load the MSP definition as
+    ID: org08MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/peerOrganizations/org08.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('org08MSP.admin', 'org08MSP.peer', 'org08MSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('org08MSP.admin', 'org08MSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('org08MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('org08MSP.peer')"
+
+  - &orderer1
+    Name: ord01
+    # ID to load the MSP definition as
+    ID: ord01MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/ordererOrganizations/ord01.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('ord01MSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('ord01MSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('ord01MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('ord01MSP.peer')"
+    # OrdererEndpoints is a list of all orderers this org runs which clients
+    # and peers may to connect to to push transactions and receive blocks respectively.
+    OrdererEndpoints:
+      - orderer1.ord01.chains:7001
+
+  - &orderer2
+    Name: ord02
+    # ID to load the MSP definition as
+    ID: ord02MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/ordererOrganizations/ord02.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('ord02MSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('ord02MSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('ord02MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('ord02MSP.peer')"
+    # OrdererEndpoints is a list of all orderers this org runs which clients
+    # and peers may to connect to to push transactions and receive blocks respectively.
+    OrdererEndpoints:
+      - orderer1.ord02.chains:7002
+
+  - &orderer3
+    Name: ord03
+    # ID to load the MSP definition as
+    ID: ord03MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../certs/chains/ordererOrganizations/ord03.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('ord03MSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('ord03MSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('ord03MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('ord03MSP.peer')"
+    # OrdererEndpoints is a list of all orderers this org runs which clients
+    # and peers may to connect to to push transactions and receive blocks respectively.
+    OrdererEndpoints:
+      - orderer1.ord03.chains:7003
+################################################################################
+#
+#   SECTION: Capabilities
+#
+#   - This section defines the capabilities of fabric network. This is a new
+#   concept as of v1.1.0 and should not be utilized in mixed networks with
+#   v1.0.x peers and orderers.  Capabilities define features which must be
+#   present in a fabric binary for that binary to safely participate in the
+#   fabric network.  For instance, if a new MSP type is added, newer binaries
+#   might recognize and validate the signatures from this type, while older
+#   binaries without this support would be unable to validate those
+#   transactions.  This could lead to different versions of the fabric binaries
+#   having different world states.  Instead, defining a capability for a channel
+#   informs those binaries without this capability that they must cease
+#   processing transactions until they have been upgraded.  For v1.0.x if any
+#   capabilities are defined (including a map with all capabilities turned off)
+#   then the v1.0.x peer will deliberately crash.
+#
+################################################################################
+Capabilities:
+  # Channel capabilities apply to both the orderers and the peers and must be
+  # supported by both.
+  # Set the value of the capability to true to require it.
+  Channel: &ChannelCapabilities
+    # V2_0 capability ensures that orderers and peers behave according
+    # to v2.0 channel capabilities. Orderers and peers from
+    # prior releases would behave in an incompatible way, and are therefore
+    # not able to participate in channels at v2.0 capability.
+    # Prior to enabling V2.0 channel capabilities, ensure that all
+    # orderers and peers on a channel are at v2.0.0 or later.
+    V2_0: true
+  # Orderer capabilities apply only to the orderers, and may be safely
+  # used with prior release peers.
+  # Set the value of the capability to true to require it.
+  Orderer: &OrdererCapabilities
+    # V2_0 orderer capability ensures that orderers behave according
+    # to v2.0 orderer capabilities. Orderers from
+    # prior releases would behave in an incompatible way, and are therefore
+    # not able to participate in channels at v2.0 orderer capability.
+    # Prior to enabling V2.0 orderer capabilities, ensure that all
+    # orderers on channel are at v2.0.0 or later.
+    V2_0: true
+  # Application capabilities apply only to the peer network, and may be safely
+  # used with prior release orderers.
+  # Set the value of the capability to true to require it.
+  Application: &ApplicationCapabilities
+    # V2.5 for Application enables the new non-backwards compatible
+    # features of fabric v2.5, namely the ability to purge private data.
+    # Prior to enabling V2.5 application capabilities, ensure that all
+    # peers on a channel are at v2.5.0 or later.
+    V2_5: true
+
+################################################################################
+#
+#   SECTION: Application
+#
+#   - This section defines the values to encode into a config transaction or
+#   genesis block for application related parameters
+#
+################################################################################
+Application: &ApplicationDefaults
+  # Organizations is the list of orgs which are defined as participants on
+  # the application side of the network
+  Organizations:
+  # Policies defines the set of policies at this level of the config tree
+  # For Application policies, their canonical path is
+  #   /Channel/Application/<PolicyName>
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+  Capabilities:
+    <<: *ApplicationCapabilities
+################################################################################
+#
+#   SECTION: Orderer
+#
+#   - This section defines the values to encode into a config transaction or
+#   genesis block for orderer related parameters
+#
+################################################################################
+Orderer: &OrdererDefaults
+  # Addresses used to be the list of orderer addresses that clients and peers
+  # could connect to.  However, this does not allow clients to associate orderer
+  # addresses and orderer organizations which can be useful for things such
+  # as TLS validation.  The preferred way to specify orderer addresses is now
+  # to include the OrdererEndpoints item in your org definition
+  Addresses:
+    - orderer1.ord01.chains:7001
+    - orderer1.ord02.chains:7002
+    - orderer1.ord03.chains:7003
+  # Batch Timeout: The amount of time to wait before creating a batch
+  BatchTimeout: 2s
+  # Batch Size: Controls the number of messages batched into a block
+  BatchSize:
+    # Max Message Count: The maximum number of messages to permit in a batch
+    MaxMessageCount: 500
+    # Absolute Max Bytes: The absolute maximum number of bytes allowed for
+    # the serialized messages in a batch.
+    AbsoluteMaxBytes: 10 MB
+    # Preferred Max Bytes: The preferred maximum number of bytes allowed for
+    # the serialized messages in a batch. A message larger than the preferred
+    # max bytes will result in a batch larger than preferred max bytes.
+    PreferredMaxBytes: 2 MB
+  # Organizations is the list of orgs which are defined as participants on
+  # the orderer side of the network
+  # Policies defines the set of policies at this level of the config tree
+  # For Orderer policies, their canonical path is
+  #   /Channel/Orderer/<PolicyName>
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "ANY Admins"
+    # BlockValidation specifies what signatures must be included in the block
+    # from the orderer for the peer to validate it.
+    BlockValidation:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+################################################################################
+#
+#   CHANNEL
+#
+#   This section defines the values to encode into a config transaction or
+#   genesis block for channel related parameters.
+#
+################################################################################
+Channel: &ChannelDefaults
+  # Policies defines the set of policies at this level of the config tree
+  # For Channel policies, their canonical path is
+  #   /Channel/<PolicyName>
+  Policies:
+    # Who may invoke the 'Deliver' API
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    # Who may invoke the 'Broadcast' API
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    # By default, who may modify elements at this config level
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+  # Capabilities describes the channel level capabilities, see the
+  # dedicated Capabilities section elsewhere in this file for a full
+  # description
+  Capabilities:
+    <<: *ChannelCapabilities
+################################################################################
+#
+#   Profile
+#
+#   - Different configuration profiles may be encoded here to be specified
+#   as parameters to the configtxgen tool
+#
+################################################################################
+Profiles:
+  Raft:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      OrdererType: etcdraft
+      EtcdRaft:
+        Consenters:
+          - Host: orderer1.ord01.chains
+            Port: 7001
+            ClientTLSCert: ../../certs/chains/ordererOrganizations/ord01.chains/orderers/orderer1.ord01.chains/tls/server.crt
+            ServerTLSCert: ../../certs/chains/ordererOrganizations/ord01.chains/orderers/orderer1.ord01.chains/tls/server.crt
+          - Host: orderer1.ord02.chains
+            Port: 7002
+            ClientTLSCert: ../../certs/chains/ordererOrganizations/ord02.chains/orderers/orderer1.ord02.chains/tls/server.crt
+            ServerTLSCert: ../../certs/chains/ordererOrganizations/ord02.chains/orderers/orderer1.ord02.chains/tls/server.crt
+          - Host: orderer1.ord03.chains
+            Port: 7003
+            ClientTLSCert: ../../certs/chains/ordererOrganizations/ord03.chains/orderers/orderer1.ord03.chains/tls/server.crt
+            ServerTLSCert: ../../certs/chains/ordererOrganizations/ord03.chains/orderers/orderer1.ord03.chains/tls/server.crt
+      Capabilities: *OrdererCapabilities
+      Addresses:
+        - orderer1.ord01.chains:7001
+        - orderer1.ord02.chains:7002
+        - orderer1.ord03.chains:7003
+      Organizations:
+        - *orderer1
+        - *orderer2
+        - *orderer3
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *org01
+        - *org02
+        - *org03
+        - *org04
+        - *org05
+        - *org06
+        - *org07
+        - *org08
+      Capabilities: *ApplicationCapabilities

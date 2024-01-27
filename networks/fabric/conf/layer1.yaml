@@ -1,0 +1,413 @@
+# ---------------------------------------------------------------------------
+# "PeerOrgs" - Definition of organizations managing peer nodes
+# ---------------------------------------------------------------------------
+PeerOrgs:
+  # ---------------------------------------------------------------------------
+  # org01
+  # ---------------------------------------------------------------------------
+  - Name: org01
+    Domain: org01.chains
+    EnableNodeOUs: true
+    # ---------------------------------------------------------------------------
+    # "Specs"
+    # ---------------------------------------------------------------------------
+    # Uncomment this section to enable the explicit definition of hosts in your
+    # configuration.  Most users will want to use Template, below
+    #
+    # Specs is an array of Spec entries.  Each Spec entry consists of two fields:
+    #   - Hostname:   (Required) The desired hostname, sans the domain.
+    #   - CommonName: (Optional) Specifies the template or explicit override for
+    #                 the CN.  By default, this is the template:
+    #
+    #                              "{{.Hostname}}.{{.Domain}}"
+    #
+    #                 which obtains its values from the Spec.Hostname and
+    #                 Org.Domain, respectively.
+    # ---------------------------------------------------------------------------
+    #   - Hostname: foo # implicitly "foo.org1.example.com"
+    #     CommonName: foo27.org5.example.com # overrides Hostname-based FQDN set above
+    #   - Hostname: bar
+    #   - Hostname: baz
+    # ---------------------------------------------------------------------------
+    # "Template"
+    # ---------------------------------------------------------------------------
+    # Allows for the definition of 1 or more hosts that are created sequentially
+    # from a template. By default, this looks like "peer%d" from 0 to Count-1.
+    # You may override the number of nodes (Count), the starting index (Start)
+    # or the template used to construct the name (Hostname).
+    #
+    # Note: Template and Specs are not mutually exclusive.  You may define both
+    # sections and the aggregate nodes will be created for you.  Take care with
+    # name collisions
+    # ---------------------------------------------------------------------------
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Start: 1
+      # Hostname: {{.Prefix}}{{.Index}} # default
+    # ---------------------------------------------------------------------------
+    # "Users"
+    # ---------------------------------------------------------------------------
+    # Count: The number of user accounts _in addition_ to Admin
+    # ---------------------------------------------------------------------------
+    Users:
+      Count: 1
+
+  # ---------------------------------------------------------------------------
+  # org02
+  # ---------------------------------------------------------------------------
+  - Name: org02
+    Domain: org02.chains
+    EnableNodeOUs: true
+    # ---------------------------------------------------------------------------
+    # "Specs"
+    # ---------------------------------------------------------------------------
+    # Uncomment this section to enable the explicit definition of hosts in your
+    # configuration.  Most users will want to use Template, below
+    #
+    # Specs is an array of Spec entries.  Each Spec entry consists of two fields:
+    #   - Hostname:   (Required) The desired hostname, sans the domain.
+    #   - CommonName: (Optional) Specifies the template or explicit override for
+    #                 the CN.  By default, this is the template:
+    #
+    #                              "{{.Hostname}}.{{.Domain}}"
+    #
+    #                 which obtains its values from the Spec.Hostname and
+    #                 Org.Domain, respectively.
+    # ---------------------------------------------------------------------------
+    #   - Hostname: foo # implicitly "foo.org1.example.com"
+    #     CommonName: foo27.org5.example.com # overrides Hostname-based FQDN set above
+    #   - Hostname: bar
+    #   - Hostname: baz
+    # ---------------------------------------------------------------------------
+    # "Template"
+    # ---------------------------------------------------------------------------
+    # Allows for the definition of 1 or more hosts that are created sequentially
+    # from a template. By default, this looks like "peer%d" from 0 to Count-1.
+    # You may override the number of nodes (Count), the starting index (Start)
+    # or the template used to construct the name (Hostname).
+    #
+    # Note: Template and Specs are not mutually exclusive.  You may define both
+    # sections and the aggregate nodes will be created for you.  Take care with
+    # name collisions
+    # ---------------------------------------------------------------------------
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Start: 1
+      # Hostname: {{.Prefix}}{{.Index}} # default
+    # ---------------------------------------------------------------------------
+    # "Users"
+    # ---------------------------------------------------------------------------
+    # Count: The number of user accounts _in addition_ to Admin
+    # ---------------------------------------------------------------------------
+    Users:
+      Count: 1
+  # ---------------------------------------------------------------------------
+  # org03
+  # ---------------------------------------------------------------------------
+  - Name: org03
+    Domain: org03.chains
+    EnableNodeOUs: true
+    # ---------------------------------------------------------------------------
+    # "Specs"
+    # ---------------------------------------------------------------------------
+    # Uncomment this section to enable the explicit definition of hosts in your
+    # configuration.  Most users will want to use Template, below
+    #
+    # Specs is an array of Spec entries.  Each Spec entry consists of two fields:
+    #   - Hostname:   (Required) The desired hostname, sans the domain.
+    #   - CommonName: (Optional) Specifies the template or explicit override for
+    #                 the CN.  By default, this is the template:
+    #
+    #                              "{{.Hostname}}.{{.Domain}}"
+    #
+    #                 which obtains its values from the Spec.Hostname and
+    #                 Org.Domain, respectively.
+    # ---------------------------------------------------------------------------
+    #   - Hostname: foo # implicitly "foo.org1.example.com"
+    #     CommonName: foo27.org5.example.com # overrides Hostname-based FQDN set above
+    #   - Hostname: bar
+    #   - Hostname: baz
+    # ---------------------------------------------------------------------------
+    # "Template"
+    # ---------------------------------------------------------------------------
+    # Allows for the definition of 1 or more hosts that are created sequentially
+    # from a template. By default, this looks like "peer%d" from 0 to Count-1.
+    # You may override the number of nodes (Count), the starting index (Start)
+    # or the template used to construct the name (Hostname).
+    #
+    # Note: Template and Specs are not mutually exclusive.  You may define both
+    # sections and the aggregate nodes will be created for you.  Take care with
+    # name collisions
+    # ---------------------------------------------------------------------------
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Start: 1
+      # Hostname: {{.Prefix}}{{.Index}} # default
+    # ---------------------------------------------------------------------------
+    # "Users"
+    # ---------------------------------------------------------------------------
+    # Count: The number of user accounts _in addition_ to Admin
+    # ---------------------------------------------------------------------------
+    Users:
+      Count: 1
+  # ---------------------------------------------------------------------------
+  # org04
+  # ---------------------------------------------------------------------------
+  - Name: org04
+    Domain: org04.chains
+    EnableNodeOUs: true
+    # ---------------------------------------------------------------------------
+    # "Specs"
+    # ---------------------------------------------------------------------------
+    # Uncomment this section to enable the explicit definition of hosts in your
+    # configuration.  Most users will want to use Template, below
+    #
+    # Specs is an array of Spec entries.  Each Spec entry consists of two fields:
+    #   - Hostname:   (Required) The desired hostname, sans the domain.
+    #   - CommonName: (Optional) Specifies the template or explicit override for
+    #                 the CN.  By default, this is the template:
+    #
+    #                              "{{.Hostname}}.{{.Domain}}"
+    #
+    #                 which obtains its values from the Spec.Hostname and
+    #                 Org.Domain, respectively.
+    # ---------------------------------------------------------------------------
+    #   - Hostname: foo # implicitly "foo.org1.example.com"
+    #     CommonName: foo27.org5.example.com # overrides Hostname-based FQDN set above
+    #   - Hostname: bar
+    #   - Hostname: baz
+    # ---------------------------------------------------------------------------
+    # "Template"
+    # ---------------------------------------------------------------------------
+    # Allows for the definition of 1 or more hosts that are created sequentially
+    # from a template. By default, this looks like "peer%d" from 0 to Count-1.
+    # You may override the number of nodes (Count), the starting index (Start)
+    # or the template used to construct the name (Hostname).
+    #
+    # Note: Template and Specs are not mutually exclusive.  You may define both
+    # sections and the aggregate nodes will be created for you.  Take care with
+    # name collisions
+    # ---------------------------------------------------------------------------
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Start: 1
+      # Hostname: {{.Prefix}}{{.Index}} # default
+    # ---------------------------------------------------------------------------
+    # "Users"
+    # ---------------------------------------------------------------------------
+    # Count: The number of user accounts _in addition_ to Admin
+    # ---------------------------------------------------------------------------
+    Users:
+      Count: 1
+  # ---------------------------------------------------------------------------
+  # org05
+  # ---------------------------------------------------------------------------
+  - Name: org05
+    Domain: org05.chains
+    EnableNodeOUs: true
+    # ---------------------------------------------------------------------------
+    # "Specs"
+    # ---------------------------------------------------------------------------
+    # Uncomment this section to enable the explicit definition of hosts in your
+    # configuration.  Most users will want to use Template, below
+    #
+    # Specs is an array of Spec entries.  Each Spec entry consists of two fields:
+    #   - Hostname:   (Required) The desired hostname, sans the domain.
+    #   - CommonName: (Optional) Specifies the template or explicit override for
+    #                 the CN.  By default, this is the template:
+    #
+    #                              "{{.Hostname}}.{{.Domain}}"
+    #
+    #                 which obtains its values from the Spec.Hostname and
+    #                 Org.Domain, respectively.
+    # ---------------------------------------------------------------------------
+    #   - Hostname: foo # implicitly "foo.org1.example.com"
+    #     CommonName: foo27.org5.example.com # overrides Hostname-based FQDN set above
+    #   - Hostname: bar
+    #   - Hostname: baz
+    # ---------------------------------------------------------------------------
+    # "Template"
+    # ---------------------------------------------------------------------------
+    # Allows for the definition of 1 or more hosts that are created sequentially
+    # from a template. By default, this looks like "peer%d" from 0 to Count-1.
+    # You may override the number of nodes (Count), the starting index (Start)
+    # or the template used to construct the name (Hostname).
+    #
+    # Note: Template and Specs are not mutually exclusive.  You may define both
+    # sections and the aggregate nodes will be created for you.  Take care with
+    # name collisions
+    # ---------------------------------------------------------------------------
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Start: 1
+      # Hostname: {{.Prefix}}{{.Index}} # default
+    # ---------------------------------------------------------------------------
+    # "Users"
+    # ---------------------------------------------------------------------------
+    # Count: The number of user accounts _in addition_ to Admin
+    # ---------------------------------------------------------------------------
+    Users:
+      Count: 1
+  # ---------------------------------------------------------------------------
+  # org06
+  # ---------------------------------------------------------------------------
+  - Name: org06
+    Domain: org06.chains
+    EnableNodeOUs: true
+    # ---------------------------------------------------------------------------
+    # "Specs"
+    # ---------------------------------------------------------------------------
+    # Uncomment this section to enable the explicit definition of hosts in your
+    # configuration.  Most users will want to use Template, below
+    #
+    # Specs is an array of Spec entries.  Each Spec entry consists of two fields:
+    #   - Hostname:   (Required) The desired hostname, sans the domain.
+    #   - CommonName: (Optional) Specifies the template or explicit override for
+    #                 the CN.  By default, this is the template:
+    #
+    #                              "{{.Hostname}}.{{.Domain}}"
+    #
+    #                 which obtains its values from the Spec.Hostname and
+    #                 Org.Domain, respectively.
+    # ---------------------------------------------------------------------------
+    #   - Hostname: foo # implicitly "foo.org1.example.com"
+    #     CommonName: foo27.org5.example.com # overrides Hostname-based FQDN set above
+    #   - Hostname: bar
+    #   - Hostname: baz
+    # ---------------------------------------------------------------------------
+    # "Template"
+    # ---------------------------------------------------------------------------
+    # Allows for the definition of 1 or more hosts that are created sequentially
+    # from a template. By default, this looks like "peer%d" from 0 to Count-1.
+    # You may override the number of nodes (Count), the starting index (Start)
+    # or the template used to construct the name (Hostname).
+    #
+    # Note: Template and Specs are not mutually exclusive.  You may define both
+    # sections and the aggregate nodes will be created for you.  Take care with
+    # name collisions
+    # ---------------------------------------------------------------------------
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Start: 1
+      # Hostname: {{.Prefix}}{{.Index}} # default
+    # ---------------------------------------------------------------------------
+    # "Users"
+    # ---------------------------------------------------------------------------
+    # Count: The number of user accounts _in addition_ to Admin
+    # ---------------------------------------------------------------------------
+    Users:
+      Count: 1
+  # ---------------------------------------------------------------------------
+  # org07
+  # ---------------------------------------------------------------------------
+  - Name: org07
+    Domain: org07.chains
+    EnableNodeOUs: true
+    # ---------------------------------------------------------------------------
+    # "Specs"
+    # ---------------------------------------------------------------------------
+    # Uncomment this section to enable the explicit definition of hosts in your
+    # configuration.  Most users will want to use Template, below
+    #
+    # Specs is an array of Spec entries.  Each Spec entry consists of two fields:
+    #   - Hostname:   (Required) The desired hostname, sans the domain.
+    #   - CommonName: (Optional) Specifies the template or explicit override for
+    #                 the CN.  By default, this is the template:
+    #
+    #                              "{{.Hostname}}.{{.Domain}}"
+    #
+    #                 which obtains its values from the Spec.Hostname and
+    #                 Org.Domain, respectively.
+    # ---------------------------------------------------------------------------
+    #   - Hostname: foo # implicitly "foo.org1.example.com"
+    #     CommonName: foo27.org5.example.com # overrides Hostname-based FQDN set above
+    #   - Hostname: bar
+    #   - Hostname: baz
+    # ---------------------------------------------------------------------------
+    # "Template"
+    # ---------------------------------------------------------------------------
+    # Allows for the definition of 1 or more hosts that are created sequentially
+    # from a template. By default, this looks like "peer%d" from 0 to Count-1.
+    # You may override the number of nodes (Count), the starting index (Start)
+    # or the template used to construct the name (Hostname).
+    #
+    # Note: Template and Specs are not mutually exclusive.  You may define both
+    # sections and the aggregate nodes will be created for you.  Take care with
+    # name collisions
+    # ---------------------------------------------------------------------------
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Start: 1
+      # Hostname: {{.Prefix}}{{.Index}} # default
+    # ---------------------------------------------------------------------------
+    # "Users"
+    # ---------------------------------------------------------------------------
+    # Count: The number of user accounts _in addition_ to Admin
+    # ---------------------------------------------------------------------------
+    Users:
+      Count: 1
+  # ---------------------------------------------------------------------------
+  # org08
+  # ---------------------------------------------------------------------------
+  - Name: org08
+    Domain: org08.chains
+    EnableNodeOUs: true
+    # ---------------------------------------------------------------------------
+    # "Specs"
+    # ---------------------------------------------------------------------------
+    # Uncomment this section to enable the explicit definition of hosts in your
+    # configuration.  Most users will want to use Template, below
+    #
+    # Specs is an array of Spec entries.  Each Spec entry consists of two fields:
+    #   - Hostname:   (Required) The desired hostname, sans the domain.
+    #   - CommonName: (Optional) Specifies the template or explicit override for
+    #                 the CN.  By default, this is the template:
+    #
+    #                              "{{.Hostname}}.{{.Domain}}"
+    #
+    #                 which obtains its values from the Spec.Hostname and
+    #                 Org.Domain, respectively.
+    # ---------------------------------------------------------------------------
+    #   - Hostname: foo # implicitly "foo.org1.example.com"
+    #     CommonName: foo27.org5.example.com # overrides Hostname-based FQDN set above
+    #   - Hostname: bar
+    #   - Hostname: baz
+    # ---------------------------------------------------------------------------
+    # "Template"
+    # ---------------------------------------------------------------------------
+    # Allows for the definition of 1 or more hosts that are created sequentially
+    # from a template. By default, this looks like "peer%d" from 0 to Count-1.
+    # You may override the number of nodes (Count), the starting index (Start)
+    # or the template used to construct the name (Hostname).
+    #
+    # Note: Template and Specs are not mutually exclusive.  You may define both
+    # sections and the aggregate nodes will be created for you.  Take care with
+    # name collisions
+    # ---------------------------------------------------------------------------
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Start: 1
+      # Hostname: {{.Prefix}}{{.Index}} # default
+    # ---------------------------------------------------------------------------
+    # "Users"
+    # ---------------------------------------------------------------------------
+    # Count: The number of user accounts _in addition_ to Admin
+    # ---------------------------------------------------------------------------
+    Users:
+      Count: 1
