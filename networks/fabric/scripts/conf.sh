@@ -3,11 +3,11 @@
 function start_nodes() {
     # warning if artifacts don't exist
     if [ ! -d "../certs/chains/peerOrganizations" ]; then
-	fatalln "Please generate the certificates using -i before bring the nodes up."
+	fatalln "Please generate the certificates using -c before bring the nodes up."
     fi
 
     if [ ! -d "../certs/chains/ordererOrganizations" ]; then
-	fatalln "Please generate the certificates using -i before bring the nodes up."
+	fatalln "Please generate the certificates using -c before bring the nodes up."
     fi
 
     DOCKER_SOCK="${DOCKER_SOCK}" docker-compose ${COMPOSE_FILES} up -d 2>&1

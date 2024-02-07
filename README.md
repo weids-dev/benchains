@@ -6,12 +6,12 @@ Benchmarking various Layer 2 blockchains solutions using Hyperledger Fabric.
 As part of my research at **[HKBU](https://www.comp.hkbu.edu.hk/)** in [MSc Research I](https://www.comp.hkbu.edu.hk/v1/file/course/COMP7960.pdf), I am conducting a comprehensive survey on blockchain technologies, with a focus on Layer 2 solutions.
 
 Although existing surveys provided a foundation, I identified a gap in the benchmarking of different blockchain layer 2 solutions.
-Notably, existing benchmarks like [Fabric](https://ieeexplore.ieee.org/document/8526892), [Blockbench](https://www.comp.nus.edu.sg/~ooibc/blockbench.pdf) and [BBSF](https://ieeexplore.ieee.org/abstract/document/9350772) primarily focus on:
+Notably, existing benchmarks like [Fabric](https://ieeexplore.ieee.org/document/8526892), [Blockbench](https://www.comp.nus.edu.sg/~ooibc/blockbench.pdf) and [BBSF](https://dl.acm.org/doi/10.1145/3595647.3595649) primarily focus on:
 1. Evaluating the performance of different blockchain systems under identical conditions.
 2. Impact of Layer 1 attributes (block size, consensus algorithms, node count) on single blockchain system performance.
 
 However, there's a lack of benchmarking for different Layer 2 solutions.
-This gap is acknowledged in the recent [BBSF](https://ieeexplore.ieee.org/abstract/document/9350772) paper, which underscores the necessity for specialized workloads to better understand Layer 2 performance dynamics.
+This gap is acknowledged in the recent [BBSF](https://dl.acm.org/doi/10.1145/3595647.3595649) paper, which underscores the necessity for specialized workloads to better understand Layer 2 performance dynamics.
 
 This **benchains** project is designed to address this gap. The primary challenge lies in the diverse use cases and varying efficacy of Layer 2 solutions across different blockchains. For example, the [Lightning Network](https://lightning.network/lightning-network-paper.pdf)  is optimized for high-frequency transactions but may not be as efficient for single, large-volume transactions. Consequently, a uniform comparative analysis of all Layer 2 solutions is not feasible.
 
@@ -37,5 +37,5 @@ For instance, leveraging Fabric's channel mechanisms can facilitate implementing
 
 ## Implementation
 ### 1. Creating a Simulated Layer 1 Blockchain Using Fabric
-The foundational simulated Layer 1 network using Fabric has been developed in [Angold-4/chains](https://github.com/Angold-4/chains) as of December 2023. All relevant code and documentation have been migrated to [`networks/fabric/`](https://github.com/weids-dev/benchains/networks/fabric) in this repository.
+The foundational simulated Layer 1 network using Fabric has been developed in [Angold-4/chains](https://github.com/Angold-4/chains) as of December 2023. All relevant code and documentation have been migrated to [`networks/fabric/`](https://github.com/weids-dev/benchains/tree/main/networks/fabric) in this repository.
 
