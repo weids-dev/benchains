@@ -1,6 +1,7 @@
 /*
    Copyright 2021 IBM All Rights Reserved.
    With Customized Modifications
+   Asset Transfer Sample Benchmark
    SPDX-License-Identifier: Apache-2.0
 */
 
@@ -23,6 +24,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
+
+	"net/http"
+	"strings"
+	"log"
 )
 
 const (
@@ -35,8 +40,46 @@ const (
 	gatewayPeer  = "peer1.org01.chains"
 )
 
+// Asset describes basic details of what makes up a simple asset
+type Asset struct {
+	ID             string `json:"ID"`
+	Color          string `json:"color"`
+	Size           int    `json:"size"`
+	Owner          string `json:"owner"`
+	AppraisedValue int    `json:"appraisedValue"`
+}
+
 var now = time.Now()
 var assetId = fmt.Sprintf("asset%d", now.Unix()*1e3+int64(now.Nanosecond())/1e6)
+
+func handleRequest(w http.ResponseWriter, r *http.Request, contract *client.Contract) {
+	// Extract assetId from the URL path, assuming the base path is "/asset/"
+	assetId := strings.TrimPrefix(r.URL.Path, "/asset/")
+	fmt.Printf("assetId is: %s", assetId)
+	if assetId == "" {
+		http.Error(w, "Asset ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Determine the action based on the HTTP method
+	switch r.Method {
+	case http.MethodPut:
+		// Handle PUT request for the specified assetId
+		createAsset(contract, assetId)
+		fmt.Fprintf(w, "PUT request processed for assetId: %s", assetId)
+		getAssetsNum(contract)
+	case http.MethodDelete:
+		// Handle DELETE request for the specified assetId
+		deleteAsset(contract, assetId)
+		fmt.Fprintf(w, "DELETE request processed for assetId: %s", assetId)
+		getAssetsNum(contract)
+	default:
+		// Method Not Allowed for other HTTP methods
+		getAllAssets(contract)
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 
 func main() {
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
@@ -76,9 +119,21 @@ func main() {
 	network := gw.GetNetwork(channelName)
 	contract := network.GetContract(chaincodeName)
 
+
 	initLedger(contract)
-	/*
 	getAllAssets(contract)
+
+	http.HandleFunc("/asset/", func(w http.ResponseWriter, r *http.Request) {
+		handleRequest(w, r, contract)
+	})
+
+	fmt.Println("Server is listening on port 10808")
+
+	if err := http.ListenAndServe(":10808", nil); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+
+	/*
 	createAsset(contract)
 	readAssetByID(contract)
 	transferAssetAsync(contract)
@@ -155,6 +210,7 @@ func newSign() identity.Sign {
 
 // This type of transaction would typically only be run once by an application the first time it was started after its
 // initial deployment. A new version of the chaincode deployed later would likely not need to run an "init" function.
+//
 // SubmitTransaction will submit a transaction to the ledger and return its result only after it is committed to the ledger.
 // The transaction function will be evaluated on endorsing peers and then submitted to the ordering service to be committed to the ledger.
 func initLedger(contract *client.Contract) {
@@ -179,11 +235,30 @@ func getAllAssets(contract *client.Contract) {
 	}
 	result := formatJSON(evaluateResult)
 
-	fmt.Printf("*** Result:%s\n", result)
+	fmt.Printf("*** Records: %s\n", result)
+}
+
+// getAssetsNum evaluates a transaction to query ledger state and prints the number of assets
+func getAssetsNum(contract *client.Contract) {
+	fmt.Println("\n--> Evaluate Transaction: GetAssetsNum, function returns the number of current assets on the ledger")
+
+	evaluateResult, err := contract.EvaluateTransaction("GetAllAssets")
+	if err != nil {
+		panic(fmt.Errorf("failed to evaluate transaction: %w", err))
+	}
+
+	// Unmarshal the JSON bytes into a slice of Asset structs
+	var assets []*Asset
+	if err := json.Unmarshal(evaluateResult, &assets); err != nil {
+		panic(fmt.Errorf("failed to unmarshal JSON: %w", err))
+	}
+
+	// Now you can accurately get the number of assets
+	fmt.Printf("*** Number of Records: %d\n", len(assets))
 }
 
 // Submit a transaction synchronously, blocking until it has been committed to the ledger.
-func createAsset(contract *client.Contract) {
+func createAsset(contract *client.Contract, assetId string) {
 	fmt.Printf("\n--> Submit Transaction: CreateAsset, creates new asset with ID, Color, Size, Owner and AppraisedValue arguments \n")
 
 	_, err := contract.SubmitTransaction("CreateAsset", assetId, "yellow", "5", "Tom", "1300")
@@ -228,6 +303,19 @@ func transferAssetAsync(contract *client.Contract) {
 
 	fmt.Printf("*** Transaction committed successfully\n")
 }
+
+func deleteAsset(contract *client.Contract, assetId string) {
+	fmt.Printf("\n--> Delete Asset: %s \n", assetId)
+
+	_, err := contract.SubmitTransaction("DeleteAsset", assetId)
+
+	if err != nil {
+		panic(fmt.Errorf("failed to submit transaction: %w", err))
+	}
+
+	fmt.Printf("*** Transaction committed successfully\n")
+}
+
 
 // Submit transaction, passing in the wrong number of arguments ,expected to throw an error containing details of any error responses from the smart contract.
 func exampleErrorHandling(contract *client.Contract) {

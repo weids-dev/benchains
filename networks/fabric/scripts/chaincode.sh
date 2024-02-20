@@ -86,7 +86,9 @@ function atcc_invoke() {
     peer lifecycle chaincode querycommitted --channelID chains --name basic
 
     time peer chaincode invoke -o localhost:7001 --ordererTLSHostnameOverride orderer1.ord01.chains --tls --cafile $ORDERER1_TLS -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"InitLedger","Args":[]}'
+}
 
+function none() {
     sleep 3
     echo "GetAllAssets:"
     time peer chaincode query -C chains -n basic -c '{"Args":["GetAllAssets"]}'

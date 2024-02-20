@@ -14,13 +14,6 @@ function env() {
     export docker_sock="${sock##unix://}"
     export CHANNEL_NAME=chains
     export ORDERER1_TLS="${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem"
-
-    # vendor
-    cd ../../../chaincodes/sample-atcc/
-    go mod tidy && go mod vendor
-
-    # back to scripts
-    cd ../../networks/fabric/scripts/
 }
 
 # Helper functions:

@@ -65,6 +65,13 @@ function commit() {
     query_committed org08 6008
 }
 
+# vendor
+cd ../../../chaincodes/sample-atcc/
+go mod tidy && go mod vendor
+
+# back to scripts
+cd ../../networks/fabric/scripts/
+
 # Main script logic
 while getopts ":hicntlsa" opt; do
     case $opt in

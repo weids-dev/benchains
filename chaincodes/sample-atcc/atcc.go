@@ -62,11 +62,22 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 // CreateAsset issues a new asset to the world state with given details.
 func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface, id string, color string, size int, owner string, appraisedValue int) error {
 	exists, err := s.AssetExists(ctx, id)
+
 	if err != nil {
 		return err
 	}
+
 	if exists {
-		return fmt.Errorf("the asset %s already exists", id)
+		// Delete then Add -> An Update
+		exists, err := s.AssetExists(ctx, id)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("the asset %s does not exist", id)
+		}
+
+		ctx.GetStub().DelState(id)
 	}
 
 	asset := Asset{
