@@ -1,10 +1,13 @@
 package currency
 
 import (
+	"encoding/json"
 	"testing"
 	"github.com/stretchr/testify/mock"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
+
+        "github.com/weids-dev/benchains/chaincodes/wrappers/types"
 )
 
 // MockTransactionContext is a mock of TransactionContextInterface
@@ -54,12 +57,36 @@ func TestInitLedger(t *testing.T) {
 
 	cc := new(CurrencyContract)
 
+	// Prepare test data using the updated Player structure from the types package
+	testPlayers := []types.Player{
+		{
+			ID:      "player1",
+			Balance: 1000,
+			Items:   []types.Item{},
+		},
+		{
+			ID:      "player2",
+			Balance: 1500,
+			Items:   []types.Item{},
+		},
+		{
+			ID:      "player3",
+			Balance: 500,
+			Items:   []types.Item{},
+		},
+	}
+
+	for _, player := range testPlayers {
+		playerJSON, _ := json.Marshal(player)
+		stub.On("PutState", player.ID, playerJSON).Return(nil)
+	}
+
 	err := cc.InitLedger(ctx)
 	if err != nil {
 		t.Errorf("InitLedger failed with error: %s", err)
 	}
 
 	// Assert that PutState was called the correct number of times with the expected arguments
-	stub.AssertNumberOfCalls(t, "PutState", 3)
+	stub.AssertNumberOfCalls(t, "PutState", len(testPlayers))
 	stub.AssertExpectations(t)
 }
