@@ -94,13 +94,15 @@ while getopts ":hicntlsa" opt; do
 	    set_anchor_peers
 	    ;;
 	s)
-	    package_chaincode ${PWD}/../../../chaincodes/sample-atcc/
+	    # package_chaincode ${PWD}/../../../chaincodes/sample-atcc/
+	    package_chaincode ${PWD}/../../../chaincodes/wrappers/
 	    install ${PWD}/../channel-artifacts/cc.tar.gz
 	    approve
 	    commit
 	    ;;
 	a)
-	    atcc_invoke 1 2 3 4 5 6 7 8
+	    # atcc_invoke 1 2 3 4 5 6 7 8
+	    currency_invoke 1 2 3 4 5 6 7 8
 	    ;;
 	h)
 	    echo "Usage: ./fabric.sh [options]"

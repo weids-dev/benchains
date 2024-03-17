@@ -1,6 +1,6 @@
 module github.com/weids-dev/benchains/chaincodes/wrappers
 
-go 1.22.0
+go 1.17
 
 require (
 	github.com/hyperledger/fabric-chaincode-go v0.0.0-20240124143825-7dec3c7e7d45
