@@ -80,7 +80,7 @@ func (c *CurrencyContract) PlayerExists(ctx contractapi.TransactionContextInterf
 }
 
 // RecordBankTransaction records a new bank transaction to the ledger.
-func (c *CurrencyContract) RecordBankTransaction(ctx contractapi.TransactionContextInterface, date, time, userID, amountUSDStr, transactionID string) error {
+func (c *CurrencyContract) RecordBankTransaction(ctx contractapi.TransactionContextInterface, userID, amountUSDStr, transactionID string) error {
 	amountUSD, err := strconv.ParseFloat(amountUSDStr, 64);
 
 	if err != nil {
@@ -88,8 +88,6 @@ func (c *CurrencyContract) RecordBankTransaction(ctx contractapi.TransactionCont
 	}
 
 	transaction := types.BankTransaction{
-		Date:         date,
-		Time:         time,
 		UserID:       userID,
 		AmountUSD:    amountUSD,
 		TransactionID: transactionID,

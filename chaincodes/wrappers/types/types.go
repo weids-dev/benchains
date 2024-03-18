@@ -19,8 +19,6 @@ type Player struct {
 
 // BankTransaction represents a transaction from the bank to buy in-game currency.
 type BankTransaction struct {
-	Date          string  `json:"date"`
-	Time          string  `json:"time"`
 	UserID        string  `json:"userID"`
 	AmountUSD     float64 `json:"amountUSD"`
 	TransactionID string  `json:"transactionID"`
