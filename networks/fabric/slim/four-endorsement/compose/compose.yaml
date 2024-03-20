@@ -1,0 +1,296 @@
+volumes:
+  orderer1.ord01.chains:
+  orderer1.ord02.chains:
+  peer1.org01.chains:
+  peer1.org02.chains:
+  peer1.org03.chains:
+  peer1.org04.chains:
+
+networks:
+  chains:
+    name: chains
+
+services:
+  orderer1.ord01.chains:
+    container_name: orderer1.ord01.chains
+    image: hyperledger/fabric-orderer:latest
+    mem_limit: 2g
+    cpus: '1.0'
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7001
+      - ORDERER_GENERAL_LOCALMSPID=ord01MSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      # enabled TLS
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:9201
+      - ORDERER_OPERATIONS_LISTENADDRESS=orderer1.ord01.chains:9101
+      - ORDERER_METRICS_PROVIDER=prometheus
+    working_dir: /root
+    command: orderer
+    volumes:
+      - ../../../certs/chains/ordererOrganizations/ord01.chains/orderers/orderer1.ord01.chains/msp:/var/hyperledger/orderer/msp
+      - ../../../certs/chains/ordererOrganizations/ord01.chains/orderers/orderer1.ord01.chains/tls:/var/hyperledger/orderer/tls
+      - orderer1.ord01.chains:/var/hyperledger/production/orderer
+    ports:
+      - 7001:7001
+      - 9101:9101
+      - 9201:9201
+    networks:
+      - chains
+
+  orderer1.ord02.chains:
+    container_name: orderer1.ord02.chains
+    image: hyperledger/fabric-orderer:latest
+    mem_limit: 2g
+    cpus: '1.0'
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7002
+      - ORDERER_GENERAL_LOCALMSPID=ord02MSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      # enabled TLS
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:9202
+      - ORDERER_OPERATIONS_LISTENADDRESS=orderer1.ord02.chains:9102
+      - ORDERER_METRICS_PROVIDER=prometheus
+    working_dir: /root
+    command: orderer
+    volumes:
+      - ../../../certs/chains/ordererOrganizations/ord02.chains/orderers/orderer1.ord02.chains/msp:/var/hyperledger/orderer/msp
+      - ../../../certs/chains/ordererOrganizations/ord02.chains/orderers/orderer1.ord02.chains/tls:/var/hyperledger/orderer/tls
+      - orderer1.ord02.chains:/var/hyperledger/production/orderer
+    ports:
+      - 7002:7002
+      - 9102:9102
+      - 9202:9202
+    networks:
+      - chains
+
+  peer1.org01.chains:
+    container_name: peer1.org01.chains
+    mem_limit: 4g
+    cpus: '4.0'
+    image: hyperledger/fabric-peer:latest
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/peercfg
+      - FABRIC_LOGGING_SPEC=INFO
+      #- FABRIC_LOGGING_SPEC=DEBUG
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      # Peer specific variables
+      - CORE_PEER_ID=peer1.org01.chains
+      - CORE_PEER_ADDRESS=peer1.org01.chains:6001
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:6001
+      - CORE_PEER_CHAINCODEADDRESS=peer1.org01.chains:6101
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:6101
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.org01.chains:6001
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org01.chains:6001
+      - CORE_PEER_LOCALMSPID=org01MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer1.org01.chains:9001
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1org01"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+    volumes:
+      - ../../../certs/chains/peerOrganizations/org01.chains/peers/peer1.org01.chains:/etc/hyperledger/fabric
+      - peer1.org01.chains:/var/hyperledger/production
+      # - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /root
+    command: peer node start
+    ports:
+      - 6001:6001
+      - 9001:9001
+    networks:
+      - chains
+
+  peer1.org02.chains:
+    container_name: peer1.org02.chains
+    image: hyperledger/fabric-peer:latest
+    mem_limit: 4g
+    cpus: '4.0'
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/peercfg
+      - FABRIC_LOGGING_SPEC=INFO
+      #- FABRIC_LOGGING_SPEC=DEBUG
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      # Peer specific variables
+      - CORE_PEER_ID=peer1.org02.chains
+      - CORE_PEER_ADDRESS=peer1.org02.chains:6002
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:6002
+      - CORE_PEER_CHAINCODEADDRESS=peer1.org02.chains:6102
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:6102
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.org02.chains:6002
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org02.chains:6002
+      - CORE_PEER_LOCALMSPID=org02MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer1.org02.chains:9002
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1org02"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+    volumes:
+      - ../../../certs/chains/peerOrganizations/org02.chains/peers/peer1.org02.chains:/etc/hyperledger/fabric
+      - peer1.org02.chains:/var/hyperledger/production
+      # - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /root
+    command: peer node start
+    ports:
+      - 6002:6002
+      - 9002:9002
+    networks:
+      - chains
+
+  peer1.org03.chains:
+    container_name: peer1.org03.chains
+    image: hyperledger/fabric-peer:latest
+    mem_limit: 4g
+    cpus: '4.0'
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/peercfg
+      - FABRIC_LOGGING_SPEC=INFO
+      #- FABRIC_LOGGING_SPEC=DEBUG
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      # Peer specific variables
+      - CORE_PEER_ID=peer1.org03.chains
+      - CORE_PEER_ADDRESS=peer1.org02.chains:6003
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:6003
+      - CORE_PEER_CHAINCODEADDRESS=peer1.org03.chains:6103
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:6103
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.org03.chains:6003
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org03.chains:6003
+      - CORE_PEER_LOCALMSPID=org03MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer1.org03.chains:9003
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1org03"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+    volumes:
+      - ../../../certs/chains/peerOrganizations/org03.chains/peers/peer1.org03.chains:/etc/hyperledger/fabric
+      - peer1.org03.chains:/var/hyperledger/production
+      # - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /root
+    command: peer node start
+    ports:
+      - 6003:6003
+      - 9003:9003
+    networks:
+      - chains
+
+  peer1.org04.chains:
+    container_name: peer1.org04.chains
+    image: hyperledger/fabric-peer:latest
+    mem_limit: 4g
+    cpus: '4.0'
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/peercfg
+      - FABRIC_LOGGING_SPEC=INFO
+      #- FABRIC_LOGGING_SPEC=DEBUG
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      # Peer specific variables
+      - CORE_PEER_ID=peer1.org04.chains
+      - CORE_PEER_ADDRESS=peer1.org04.chains:6004
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:6004
+      - CORE_PEER_CHAINCODEADDRESS=peer1.org04.chains:6104
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:6104
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.org04.chains:6004
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org04.chains:6004
+      - CORE_PEER_LOCALMSPID=org04MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer1.org04.chains:9004
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1org04"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+    volumes:
+      - ../../../certs/chains/peerOrganizations/org04.chains/peers/peer1.org04.chains:/etc/hyperledger/fabric
+      - peer1.org04.chains:/var/hyperledger/production
+      # - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /root
+    command: peer node start
+    ports:
+      - 6004:6004
+      - 9004:9004
+    networks:
+      - chains
+
+  cli:
+    container_name: cli
+    image: hyperledger/fabric-tools:latest
+    mem_limit: 1g
+    cpus: '1.0'
+    labels:
+      service: hyperledger-fabric
+    tty: true
+    stdin_open: true
+    environment:
+      - GOPATH=/opt/gopath
+      - FABRIC_LOGGING_SPEC=INFO
+      - FABRIC_CFG_PATH=/etc/hyperledger/peercfg
+      #- FABRIC_LOGGING_SPEC=DEBUG
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: /bin/bash
+    volumes:
+      - ../../../scripts:/opt/gopath/src/github.com/hyperledger/fabric/peer/scripts/
+      - ../../../certs:/opt/gopath/src/github.com/hyperledger/fabric/peer/../certs/
+      - ../:/opt/gopath/src/github.com/hyperledger/fabric/peer/../conf/
+    depends_on:
+      - peer1.org01.chains
+      - peer1.org02.chains
+      - peer1.org03.chains
+      - peer1.org04.chains
+    networks:
+      - chains

@@ -67,6 +67,7 @@ func createPlayerHandler(w http.ResponseWriter, r *http.Request, contract *clien
 		if r.Method == http.MethodGet {
 			fmt.Fprintf(w, "Get all players \n")
 			getAllPlayers(contract)
+			getPlayersNum(contract)
 			return
 		}
 		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
@@ -83,7 +84,6 @@ func createPlayerHandler(w http.ResponseWriter, r *http.Request, contract *clien
 	fmt.Fprintf(w, "Creating player with ID: %s\n", playerId)
 	createPlayer(contract, playerId)
 	fmt.Fprintf(w, "PUT request processed for playerId: %s", playerId)
-	getPlayersNum(contract)
 }
 
 func depositHandler(w http.ResponseWriter, r *http.Request, contract *client.Contract) {
@@ -166,9 +166,9 @@ func main() {
 		client.WithSign(sign),
 		client.WithClientConnection(clientConnection),
 		// Default timeouts for different gRPC calls
-		client.WithEvaluateTimeout(5*time.Second),
-		client.WithEndorseTimeout(15*time.Second),
-		client.WithSubmitTimeout(5*time.Second),
+		client.WithEvaluateTimeout(1*time.Minute),
+		client.WithEndorseTimeout(1*time.Minute),
+		client.WithSubmitTimeout(1*time.Minute),
 		client.WithCommitStatusTimeout(1*time.Minute),
 	)
 	if err != nil {
@@ -352,7 +352,7 @@ func recordBankTransaction(contract *client.Contract, userID, amountUSDStr, tran
 	_, err := contract.SubmitTransaction("RecordBankTransaction", userID, amountUSDStr, transactionID)
 
 	if err != nil {
-		errorHandling(contract, err)
+		// errorHandling(contract, err)
 		panic(fmt.Errorf("failed to submit transaction: %w", err))
 	}
 
@@ -366,7 +366,7 @@ func exchangeInGameCurrency(contract *client.Contract, userID, transactionID, ex
 	_, err := contract.SubmitTransaction("ExchangeInGameCurrency", userID, transactionID, exchangeRateStr)
 
 	if err != nil {
-		errorHandling(contract, err)
+		// errorHandling(contract, err)
 		panic(fmt.Errorf("failed to submit transaction: %w", err))
 	}
 

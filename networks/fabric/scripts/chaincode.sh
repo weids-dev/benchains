@@ -80,7 +80,7 @@ function query_committed() {
 # Currency package in the Wrappers
 function currency_invoke() {
     parsePeerConnectionParameters $@
-    FABRIC_CFG_PATH=$PWD/../conf/config/
+    # FABRIC_CFG_PATH=$PWD/../conf/config/
 
     setGlobals org01 6001
     peer lifecycle chaincode querycommitted --channelID chains --name basic
@@ -90,14 +90,14 @@ function currency_invoke() {
     sleep 3
     echo "GetAllPlayers"
     time peer chaincode query -C chains -n basic -c '{"Args":["GetAllPlayers"]}'
-    time peer chaincode invoke -o localhost:7002 --ordererTLSHostnameOverride orderer1.ord02.chains --tls --cafile "${PWD}/../certs/chains/ordererOrganizations/ord02.chains/tlsca/tlsca.ord02.chains-cert.pem" -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"CreatePlayer","Args":["AWANG"]}'
+    time peer chaincode invoke -o localhost:7001 --ordererTLSHostnameOverride orderer1.ord01.chains --tls --cafile "${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem" -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"CreatePlayer","Args":["AWANG"]}'
 
     sleep 3
     echo "GetAllPlayers"
     time peer chaincode query -C chains -n basic -c '{"Args":["GetAllPlayers"]}'
-    time peer chaincode invoke -o localhost:7002 --ordererTLSHostnameOverride orderer1.ord02.chains --tls --cafile "${PWD}/../certs/chains/ordererOrganizations/ord02.chains/tlsca/tlsca.ord02.chains-cert.pem" -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"RecordBankTransaction","Args":["AWANG", "3000", "HSBC9736"]}'
+    time peer chaincode invoke -o localhost:7001 --ordererTLSHostnameOverride orderer1.ord01.chains --tls --cafile "${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem" -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"RecordBankTransaction","Args":["AWANG", "3000", "HSBC9736"]}'
     sleep 3
-    time peer chaincode invoke -o localhost:7002 --ordererTLSHostnameOverride orderer1.ord02.chains --tls --cafile "${PWD}/../certs/chains/ordererOrganizations/ord02.chains/tlsca/tlsca.ord02.chains-cert.pem" -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"ExchangeInGameCurrency","Args":["AWANG", "HSBC9736", "0.32"]}'
+    time peer chaincode invoke -o localhost:7001 --ordererTLSHostnameOverride orderer1.ord01.chains --tls --cafile "${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem" -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"ExchangeInGameCurrency","Args":["AWANG", "HSBC9736", "0.32"]}'
     sleep 3
     time peer chaincode query -C chains -n basic -c '{"Args":["GetAllPlayers"]}'
 }
