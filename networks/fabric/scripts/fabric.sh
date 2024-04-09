@@ -73,7 +73,7 @@ go mod tidy && go mod vendor
 cd ../../networks/fabric/scripts/
 
 # Main script logic
-while getopts ":hicntlsa" opt; do
+while getopts ":hicntlsaef" opt; do
     case $opt in
         i)
             fabric_bin   # bin.sh
@@ -94,13 +94,67 @@ while getopts ":hicntlsa" opt; do
 	    set_anchor_peers
 	    ;;
 	s)
-	    package_chaincode ${PWD}/../../../chaincodes/sample-atcc/
+	    # package_chaincode ${PWD}/../../../chaincodes/sample-atcc/
+	    package_chaincode ${PWD}/../../../chaincodes/wrappers/
 	    install ${PWD}/../channel-artifacts/cc.tar.gz
 	    approve
 	    commit
 	    ;;
 	a)
-	    atcc_invoke 1 2 3 4 5 6 7 8
+	    # atcc_invoke 1 2 3 4 5 6 7 8
+	    # currency_invoke 1 2 3 4 5 6 7 8
+	    currency_invoke 1
+	    ;;
+	e)
+	    # single_endorsement
+	    env-single-endorsement # env.sh
+	    start_nodes # conf.sh
+	    create_genesis
+	    create_channel 1
+	    join_channel org01 6001
+
+	    package_chaincode ${PWD}/../../../chaincodes/wrappers/
+	    export pkg=${PWD}/../channel-artifacts/cc.tar.gz
+	    install_chaincode org01 6001
+	    echo $PACKAGE
+	    approve_chaincode org01 6001 $PACKAGE 7001
+	    commit_chaincode 1
+	    query_committed org01 6001
+	    ;;
+	f)
+	    # four_endorsement
+	    env-four-endorsement # env.sh
+	    start_nodes # conf.sh
+	    create_genesis
+	    create_channel 1 2
+	    join_channel org01 6001
+	    join_channel org02 6002
+	    join_channel org03 6003
+	    join_channel org04 6004
+
+	    set_anchor org01 6001
+	    set_anchor org02 6002
+	    set_anchor org03 6003
+	    set_anchor org04 6004
+
+	    package_chaincode ${PWD}/../../../chaincodes/wrappers/
+	    export pkg=${PWD}/../channel-artifacts/cc.tar.gz
+	    install_chaincode org01 6001
+	    install_chaincode org02 6002
+	    install_chaincode org03 6003
+	    install_chaincode org04 6004
+
+	    echo $PACKAGE
+	    approve_chaincode org01 6001 $PACKAGE 7001
+	    approve_chaincode org02 6002 $PACKAGE 7001
+	    approve_chaincode org03 6003 $PACKAGE 7001
+	    approve_chaincode org04 6004 $PACKAGE 7001
+
+	    commit_chaincode 1 2 3 4
+	    query_committed org01 6001
+	    query_committed org02 6002
+	    query_committed org03 6003
+	    query_committed org04 6004
 	    ;;
 	h)
 	    echo "Usage: ./fabric.sh [options]"
@@ -108,6 +162,7 @@ while getopts ":hicntlsa" opt; do
 	    echo "  -i   Install the fabric binaries."
 	    echo "  -c   Create certificates for the network components."
 	    echo "  -n   Start the network nodes (peers and orderers)."
+	    echo "  -e   Start a single-endorsement slim network."
 	    echo "  -t   Stop the network nodes."
 	    echo "  -l   Create the network channel and join nodes."
 	    echo "  -s   Install and set up the sample chaincode."

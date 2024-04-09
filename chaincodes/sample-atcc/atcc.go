@@ -21,7 +21,7 @@ import (
 
 // SmartContract provides functions for managing an Asset
 type SmartContract struct {
-	contractapi.Contract
+	contractapi.Contract // embedding
 }
 
 // Asset describes basic details of what makes up a simple asset
@@ -93,6 +93,8 @@ func (s *SmartContract) CreateAsset(ctx contractapi.TransactionContextInterface,
 	}
 
 	return ctx.GetStub().PutState(id, assetJSON)
+	// In fabric the ledger state is represented as a collection of key-value pairs,
+	// where the key is a string, and the value is a byte array (`[]byte`).
 }
 
 // ReadAsset returns the asset stored in the world state with given id.

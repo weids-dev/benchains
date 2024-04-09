@@ -77,6 +77,31 @@ function query_committed() {
     peer lifecycle chaincode querycommitted --channelID chains --name basic
 }
 
+# Currency package in the Wrappers
+function currency_invoke() {
+    parsePeerConnectionParameters $@
+    # FABRIC_CFG_PATH=$PWD/../conf/config/
+
+    setGlobals org01 6001
+    peer lifecycle chaincode querycommitted --channelID chains --name basic
+
+    time peer chaincode invoke -o localhost:7001 --ordererTLSHostnameOverride orderer1.ord01.chains --tls --cafile $ORDERER1_TLS -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"InitLedger","Args":[]}'
+
+    sleep 3
+    echo "GetAllPlayers"
+    time peer chaincode query -C chains -n basic -c '{"Args":["GetAllPlayers"]}'
+    time peer chaincode invoke -o localhost:7001 --ordererTLSHostnameOverride orderer1.ord01.chains --tls --cafile "${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem" -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"CreatePlayer","Args":["AWANG"]}'
+
+    sleep 3
+    echo "GetAllPlayers"
+    time peer chaincode query -C chains -n basic -c '{"Args":["GetAllPlayers"]}'
+    time peer chaincode invoke -o localhost:7001 --ordererTLSHostnameOverride orderer1.ord01.chains --tls --cafile "${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem" -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"RecordBankTransaction","Args":["AWANG", "3000", "HSBC9736"]}'
+    sleep 3
+    time peer chaincode invoke -o localhost:7001 --ordererTLSHostnameOverride orderer1.ord01.chains --tls --cafile "${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem" -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"ExchangeInGameCurrency","Args":["AWANG", "HSBC9736", "0.32"]}'
+    sleep 3
+    time peer chaincode query -C chains -n basic -c '{"Args":["GetAllPlayers"]}'
+}
+
 # Sample atcc testing scripts
 function atcc_invoke() {
     parsePeerConnectionParameters $@
