@@ -1,7 +1,7 @@
 # Hyperledger Fabric Layer 1 Network Benchmarking Results
 
 ## Overview
-Between April 6th and April 9th, 2024, an extensive benchmarking campaign was conducted on our Hyperledger Fabric Layer 1 ![network](https://github.com/weids-dev/benchains/tree/main/networks/fabric). The focus of these benchmarks, executed via Vegeta for stress testing, was to understand the impact of variations in BatchTimeout, MaxMessageCount, and the number of endorsement nodes. The aim was to identify hardware bottlenecks, establish a solid performance baseline, and determine the optimal configurations that could facilitate efficient development of Layer 2 solutions.
+Between April 6th and April 9th, 2024, an extensive benchmarking campaign was conducted on our Hyperledger Fabric Layer 1 [network](https://github.com/weids-dev/benchains/tree/main/networks/fabric). The focus of these benchmarks, executed via Vegeta for stress testing, was to understand the impact of variations in BatchTimeout, MaxMessageCount, and the number of endorsement nodes. The aim was to identify hardware bottlenecks, establish a solid performance baseline, and determine the optimal configurations that could facilitate efficient development of Layer 2 solutions.
 
 ## Key Findings
 

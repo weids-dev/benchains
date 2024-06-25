@@ -16,6 +16,22 @@ function env() {
     export ORDERER1_TLS="${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem"
 }
 
+function env-plasma() {
+    export PATH="$PWD/../bin:$PATH"
+    export PATH="$PWD:$PATH"
+
+    export FABRIC_CFG_PATH=${PWD}/../slim/plasma-chain/config/
+
+    # Two compose files
+    export COMPOSE_FILES="-f ../slim/plasma-chain/compose/compose.yaml -f ../slim/plasma-chain/compose/docker/docker-compose.yaml"
+
+    # get docker sock path from environment variable
+    export sock="${docker_host:-/var/run/docker.sock}"
+    export docker_sock="${sock##unix://}"
+    export CHANNEL_NAME=plaschains
+    export ORDERER1_TLS="${PWD}/../certs/plasma/ordererOrganizations/slim.plaschains/tlsca/tlsca.slim.plaschains-cert.pem"
+}
+
 function env-single-endorsement() {
     export PATH="$PWD/../bin:$PATH"
     export PATH="$PWD:$PATH"
@@ -31,6 +47,7 @@ function env-single-endorsement() {
     export CHANNEL_NAME=chains
     export ORDERER1_TLS="${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem"
 }
+
 
 function env-four-endorsement() {
     export PATH="$PWD/../bin:$PATH"

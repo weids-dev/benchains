@@ -1,6 +1,6 @@
 # Wrappers
 <img src="wrappers.png" align="right" weight="50" height="125"/>
-**"A Gaming Platform for Benchmarking Layer 2 Scalability on Hyperledger Fabric"**
+"**A Gaming Platform for Benchmarking Layer 2 Scalability on Hyperledger Fabric**"
 
 
 The aim is to create a versatile and scalable multiplayer gaming application named "Wrappers", built on Hyperledger Fabric.

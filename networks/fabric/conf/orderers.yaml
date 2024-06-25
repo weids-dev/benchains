@@ -10,9 +10,10 @@ OrdererOrgs:
     EnableNodeOUs: true
     # ---------------------------------------------------------------------------
     # "Specs" - See PeerOrgs for complete description
+    # Two orderers in the ord01, orderer2.ord01.chains is for plasma
     # ---------------------------------------------------------------------------
     Template:
-      Count: 1
+      Count: 2
       SANS:
         - localhost
       Start: 1

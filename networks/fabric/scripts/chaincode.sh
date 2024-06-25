@@ -74,7 +74,7 @@ function commit_chaincode() {
 
 function query_committed() {
     setGlobals $1 $2
-    peer lifecycle chaincode querycommitted --channelID chains --name basic
+    peer lifecycle chaincode querycommitted --channelID ${CHANNEL_NAME} --name basic
 }
 
 # Currency package in the Wrappers
@@ -101,6 +101,7 @@ function currency_invoke() {
     sleep 3
     time peer chaincode query -C chains -n basic -c '{"Args":["GetAllPlayers"]}'
 }
+
 
 # Sample atcc testing scripts
 function atcc_invoke() {

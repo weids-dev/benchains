@@ -73,7 +73,7 @@ go mod tidy && go mod vendor
 cd ../../networks/fabric/scripts/
 
 # Main script logic
-while getopts ":hicntlsaef" opt; do
+while getopts ":hicntlsaefpd" opt; do
     case $opt in
         i)
             fabric_bin   # bin.sh
@@ -102,12 +102,25 @@ while getopts ":hicntlsaef" opt; do
 	    ;;
 	a)
 	    # atcc_invoke 1 2 3 4 5 6 7 8
-	    # currency_invoke 1 2 3 4 5 6 7 8
-	    currency_invoke 1
+	    currency_invoke 1 2 3 4 5 6 7 8
+	    # currency_invoke 2
+	    ;;
+	p)
+	    # plasma
+	    plasma_certs # certs.sh
+	    env-plasma # env.sh
+	    start_nodes_plasma # conf.sh
+
+	    # Two genesis blocks
+	    create_genesis_plasma # conf.sh
+	    create_channel_plasma # conf.sh
+
+	    join_channel_plasma # conf.sh
 	    ;;
 	e)
 	    # single_endorsement
 	    env-single-endorsement # env.sh
+
 	    start_nodes # conf.sh
 	    create_genesis
 	    create_channel 1

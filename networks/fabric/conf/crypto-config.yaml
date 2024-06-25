@@ -1,0 +1,45 @@
+OrdererOrgs:
+  - Name: main
+    Domain: main.chains
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Hostname: orderer
+    Users:
+      Count: 1
+
+  - Name: slim
+    Domain: slim.plaschains
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Hostname: orderer
+    Users:
+      Count: 1
+
+PeerOrgs:
+  - Name: main
+    Domain: main.chains
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Hostname: peer
+    Users:
+      Count: 1
+
+  - Name: slim
+    Domain: slim.plaschains
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+      Hostname: peer
+    Users:
+      Count: 1

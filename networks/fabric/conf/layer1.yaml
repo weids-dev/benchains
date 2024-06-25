@@ -39,9 +39,10 @@ PeerOrgs:
     # Note: Template and Specs are not mutually exclusive.  You may define both
     # sections and the aggregate nodes will be created for you.  Take care with
     # name collisions
+    # Two peers in the org01, peer2.org01.chains is used for plasma
     # ---------------------------------------------------------------------------
     Template:
-      Count: 1
+      Count: 2
       SANS:
         - localhost
       Start: 1

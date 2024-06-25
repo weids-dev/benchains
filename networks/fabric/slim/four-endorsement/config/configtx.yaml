@@ -257,7 +257,7 @@ Orderer: &OrdererDefaults
     - orderer1.ord01.chains:7001
     - orderer1.ord02.chains:7002
   # Batch Timeout: The amount of time to wait before creating a batch
-  BatchTimeout: 1s
+  BatchTimeout: 0.25s
   # Batch Size: Controls the number of messages batched into a block
   BatchSize:
     # Max Message Count: The maximum number of messages to permit in a batch
