@@ -75,12 +75,12 @@ cd ../../networks/fabric/scripts/
 # Main script logic
 while getopts ":hicntlsaefpd" opt; do
     case $opt in
-        i)
-            fabric_bin   # bin.sh
-            ;;
-        c)
-	    layer1_certs # certs.sh
-            ;;
+	i)
+			fabric_bin   # bin.sh
+			;;
+	c)
+			layer1_certs # certs.sh
+			;;
 	n)
 	    start_nodes  # conf.sh
 	    ;;
@@ -116,6 +116,15 @@ while getopts ":hicntlsaefpd" opt; do
 	    create_channel_plasma # conf.sh
 
 	    join_channel_plasma # conf.sh
+
+	    package_chaincode ${PWD}/../../../chaincodes/wrappers/ # chaincode.sh
+	    export pkg=${PWD}/../channel-artifacts/cc.tar.gz
+			
+			install_chaincode_plasma main chains 5001 mainchains # chaincode.sh
+			approve_chaincode_main main chains 5001 mainchains $PACKAGE orderer.main.chains 8001
+
+			# install_chaincode_plasma slim plaschains 6001 plaschains # chaincode.sh
+			# approve_chaincode_plasma slim plaschains 6001 plaschains $PACKAGE orderer.slim.plaschains 7001
 	    ;;
 	e)
 	    # single_endorsement
@@ -130,6 +139,7 @@ while getopts ":hicntlsaefpd" opt; do
 	    export pkg=${PWD}/../channel-artifacts/cc.tar.gz
 	    install_chaincode org01 6001
 	    echo $PACKAGE
+
 	    approve_chaincode org01 6001 $PACKAGE 7001
 	    commit_chaincode 1
 	    query_committed org01 6001

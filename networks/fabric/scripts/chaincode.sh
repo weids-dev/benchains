@@ -43,6 +43,9 @@ parsePeerConnectionParameters() {
 }
 
 function package_chaincode {
+    cd $1
+    go get github.com/weids-dev/benchains/chaincodes/wrappers
+    cd ../../networks/fabric/scripts/ 
     if [ ! -d "../channel-artifacts" ]; then
 	mkdir ../channel-artifacts
     fi
@@ -58,11 +61,38 @@ function install_chaincode() {
     peer lifecycle chaincode queryinstalled
 }
 
+function install_chaincode_plasma() {
+    # setGlobals orgname, name, port, mspname
+    setGlobals_plasma $1 $2 $3 $4
+    peer lifecycle chaincode install $pkg
+    peer lifecycle chaincode queryinstalled
+}
+
 function approve_chaincode() {
     setGlobals $1 $2
     local packageID=$3
     peer lifecycle chaincode approveformyorg -o localhost:$4 --ordererTLSHostnameOverride orderer1.ord01.chains --channelID chains --name basic --version 1.0 --package-id $packageID --sequence 1 --tls --cafile $ORDERER1_TLS
     peer lifecycle chaincode checkcommitreadiness --channelID chains --name basic --version 1.0 --sequence 1 --tls --cafile $ORDERER1_TLS --output json
+}
+
+function approve_chaincode_plasma() {
+    # TODO: Hardcoded
+    setGlobals_plasma $1 $2 $3 $4
+    local packageID=$5
+    local ordererTLS=$6
+    peer lifecycle chaincode approveformyorg -o localhost:$7 --ordererTLSHostnameOverride ${ordererTLS} --channelID $2 --name basic --version 1.0 --package-id $packageID --sequence 1 --tls --cafile $ORDERER1_TLS
+    peer lifecycle chaincode checkcommitreadiness --channelID $2 --name basic --version 1.0 --sequence 1 --tls --cafile $ORDERER1_TLS --output json
+}
+
+function approve_chaincode_main() {
+    # TODO: Hardcoded
+    setGlobals_plasma $1 $2 $3 $4
+    export ORDERER1_TLS="${PWD}/../certs/plasma/ordererOrganizations/slim.plaschains/tlsca/tlsca.slim.plaschains-cert.pem"
+    export ORDERER2_TLS="${PWD}/../certs/plasma/ordererOrganizations/main.chains/tlsca/tlsca.main.chains-cert.pem"
+    local packageID=$5
+    local ordererTLS=$6
+    peer lifecycle chaincode approveformyorg -o localhost:$7 --ordererTLSHostnameOverride ${ordererTLS} --channelID $2 --name basic --version 1.0 --package-id $packageID --sequence 1 --tls --cafile $ORDERER2_TLS
+    peer lifecycle chaincode checkcommitreadiness --channelID $2 --name basic --version 1.0 --sequence 1 --tls --cafile $ORDERER2_TLS --output json
 }
 
 function commit_chaincode() {
@@ -101,7 +131,6 @@ function currency_invoke() {
     sleep 3
     time peer chaincode query -C chains -n basic -c '{"Args":["GetAllPlayers"]}'
 }
-
 
 # Sample atcc testing scripts
 function atcc_invoke() {

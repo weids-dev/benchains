@@ -97,7 +97,7 @@ function create_channel_plasma() {
 
     # Create the channel and join the orderer to the channel.
     osnadmin channel join --channelID chains --config-block ${PWD}/../channel-artifacts/chains.block -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
-    osnadmin channel list --channelID chains -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
+    # osnadmin channel list --channelID chains -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
 
     ORDERER="slim"
     PORT="7201"
@@ -156,17 +156,7 @@ function peer_join() {
 }
 
 function join_channel_plasma() {
-    # 1. Join peer.main.chains to chains
-    local orgname="main"
-    local port=5001
-    export CORE_PEER_TLS_ENABLED=true
-    export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/../certs/plasma/peerOrganizations/${orgname}.chains/tlsca/tlsca.${orgname}.chains-cert.pem
-    export CORE_PEER_LOCALMSPID=mainchainsMSP
-    export CORE_PEER_MSPCONFIGPATH=${PWD}/../certs/plasma/peerOrganizations/${orgname}.chains/users/Admin@${orgname}.chains/msp
-    export CORE_PEER_ADDRESS=localhost:${port}
-    peer_join chains
-
-    # 2. Join peer.slim.plaschains to plaschains
+    # 1. Join peer.slim.plaschains to plaschains
     local orgname="slim"
     local port=6001
     export CORE_PEER_TLS_ENABLED=true
@@ -175,10 +165,17 @@ function join_channel_plasma() {
     export CORE_PEER_MSPCONFIGPATH=${PWD}/../certs/plasma/peerOrganizations/${orgname}.plaschains/users/Admin@${orgname}.plaschains/msp
     export CORE_PEER_ADDRESS=localhost:${port}
     export ORDERER_TLSCA_FILE=${PWD}/../certs/plasma/ordererOrganizations/slim.plaschains/orderers/orderer.slim.plaschains/tls/server.crt
-    peer_join plaschains
-    peer channel fetch newest newest_plasma.block -c plaschains --orderer localhost:7001 --tls --cafile $ORDERER_TLSCA_FILE
+    export ORDERER_CA="${PWD}/../certs/plasma/ordererOrganizations/${orgname}.plaschains/tlsca/tlsca.${orgname}.plaschains-cert.pem"
 
-    # 3. Join peer.main.chains to plaschains
+    # Hardcoded, join two orderers into two channels
+    peer_join plaschains
+    set -x
+    peer channel fetch newest newest_plasma.block -c plaschains --orderer localhost:7001 --tls --cafile $ORDERER_TLSCA_FILE
+    peer channel fetch config config_block.pb -o localhost:7001 --ordererTLSHostnameOverride orderer.slim.plaschains -c plaschains --tls --cafile "$ORDERER_CA"
+    configtxlator proto_decode --input config_block.pb --type common.Block --output config_block.json | jq .data.data[0].payload.data.config > config.json
+    set +x
+
+    # 2. Join peer.main.chains to mainchains and plaschains
     local orgname="main"
     local port=5001
     export CORE_PEER_TLS_ENABLED=true
@@ -190,11 +187,13 @@ function join_channel_plasma() {
     local COUNTER=1
     local DELAY=2
     local MAX_RETRY=3
+
     ## Sometimes Join takes time, hence retry
 	while [ $rc -ne 0 -a $COUNTER -lt $MAX_RETRY ] ; do
     sleep $DELAY
     set -x # enable detailed logging
     # peer channel
+    peer_join chains  
     peer channel join -b newest_plasma.block >&log.txt
     res=$?
     { set +x; } 2>/dev/null

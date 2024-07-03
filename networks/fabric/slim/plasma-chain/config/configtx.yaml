@@ -25,7 +25,7 @@ Organizations:
         Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.peer', 'mainchainsMSP.client')"
       Writers:
         Type: Signature
-        Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.client')"
+        Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.client', 'mainchainsMSP.peer')"
       Admins:
         Type: Signature
         Rule: "OR('mainchainsMSP.admin')"

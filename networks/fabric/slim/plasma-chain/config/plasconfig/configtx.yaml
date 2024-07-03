@@ -8,6 +8,31 @@
 #
 ################################################################################
 Organizations:
+# peer.main.chains
+  - &pmc
+    Name: peer.main.chains
+    # ID to load the MSP definition as
+    ID: mainchainsMSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../../../certs/plasma/peerOrganizations/main.chains/msp
+
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.peer', 'mainchainsMSP.client', 'plaschainsMSP.admin', 'plaschainsMSP.peer', 'plaschainsMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.client', 'plaschainsMSP.admin', 'plaschainsMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('mainchainsMSP.admin', 'plaschainsMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('mainchainsMSP.peer', 'plaschains.peer')"
+
 # peer.slim.plaschains
   - &psp
     Name: peer.slim.plaschains
@@ -255,4 +280,5 @@ Profiles:
       <<: *ApplicationDefaults
       Organizations:
         - *psp
+        - *pmc
       Capabilities: *ApplicationCapabilities
