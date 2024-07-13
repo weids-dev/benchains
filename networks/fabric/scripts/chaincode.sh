@@ -6,6 +6,7 @@ parsePeerConnectionParameters() {
   ORGNAME=""
   PORT=""
   TLS_ROOTCERT_FILE=""
+  export CCPORT=""
 
   while [ "$#" -gt 0 ]; do
     # Check if organization number is a single digit or has multiple digits
@@ -13,10 +14,12 @@ parsePeerConnectionParameters() {
         PEER="peer1.org0$1" # For single digit, e.g., org1 becomes org01
 	ORGNAME="org0$1"
 	PORT="600$1"
+	CCPORT="700$1"
     else
         PEER="peer1.org$1"  # For multiple digits, e.g., org12 remains org12
 	ORGNAME="org$1"
 	PORT="60$1"
+	CCPORT="70$1"
     fi
 
     TLS_ROOTCERT_FILE=${PWD}/../certs/chains/peerOrganizations/${ORGNAME}.chains/tlsca/tlsca.${ORGNAME}.chains-cert.pem
@@ -42,7 +45,7 @@ parsePeerConnectionParameters() {
   echo $PEER_CONN_PARMS
 }
 
-function package_chaincode {
+function package_chaincode() {
     cd $1
     go get github.com/weids-dev/benchains/chaincodes/wrappers
     cd ../../networks/fabric/scripts/ 
@@ -61,45 +64,17 @@ function install_chaincode() {
     peer lifecycle chaincode queryinstalled
 }
 
-function install_chaincode_plasma() {
-    # setGlobals orgname, name, port, mspname
-    setGlobals_plasma $1 $2 $3 $4
-    peer lifecycle chaincode install $pkg
-    peer lifecycle chaincode queryinstalled
-}
-
 function approve_chaincode() {
     setGlobals $1 $2
     local packageID=$3
-    peer lifecycle chaincode approveformyorg -o localhost:$4 --ordererTLSHostnameOverride orderer1.ord01.chains --channelID chains --name basic --version 1.0 --package-id $packageID --sequence 1 --tls --cafile $ORDERER1_TLS
-    peer lifecycle chaincode checkcommitreadiness --channelID chains --name basic --version 1.0 --sequence 1 --tls --cafile $ORDERER1_TLS --output json
-}
-
-function approve_chaincode_plasma() {
-    # TODO: Hardcoded
-    setGlobals_plasma $1 $2 $3 $4
-    local packageID=$5
-    local ordererTLS=$6
-    peer lifecycle chaincode approveformyorg -o localhost:$7 --ordererTLSHostnameOverride ${ordererTLS} --channelID $2 --name basic --version 1.0 --package-id $packageID --sequence 1 --tls --cafile $ORDERER1_TLS
-    peer lifecycle chaincode checkcommitreadiness --channelID $2 --name basic --version 1.0 --sequence 1 --tls --cafile $ORDERER1_TLS --output json
-}
-
-function approve_chaincode_main() {
-    # TODO: Hardcoded
-    setGlobals_plasma $1 $2 $3 $4
-    export ORDERER1_TLS="${PWD}/../certs/plasma/ordererOrganizations/slim.plaschains/tlsca/tlsca.slim.plaschains-cert.pem"
-    export ORDERER2_TLS="${PWD}/../certs/plasma/ordererOrganizations/main.chains/tlsca/tlsca.main.chains-cert.pem"
-    local packageID=$5
-    local ordererTLS=$6
-    peer lifecycle chaincode approveformyorg -o localhost:$7 --ordererTLSHostnameOverride ${ordererTLS} --channelID $2 --name basic --version 1.0 --package-id $packageID --sequence 1 --tls --cafile $ORDERER2_TLS
-    peer lifecycle chaincode checkcommitreadiness --channelID $2 --name basic --version 1.0 --sequence 1 --tls --cafile $ORDERER2_TLS --output json
+    peer lifecycle chaincode approveformyorg -o localhost:$4 --ordererTLSHostnameOverride ${ORDERER_NAME} --channelID ${CHANNEL_NAME} --name basic --version 1.0 --package-id $packageID --sequence 1 --tls --cafile $ORDERER1_TLS
+    peer lifecycle chaincode checkcommitreadiness --channelID ${CHANNEL_NAME} --name basic --version 1.0 --sequence 1 --tls --cafile $ORDERER1_TLS --output json
 }
 
 function commit_chaincode() {
     parsePeerConnectionParameters $@
-    # TODO: Hardcoded 7001
-    peer lifecycle chaincode commit -o localhost:7001 --ordererTLSHostnameOverride orderer1.ord01.chains --channelID chains --name basic --version 1.0 --sequence 1 --tls --cafile $ORDERER1_TLS "${PEER_CONN_PARMS[@]}" 
-    peer lifecycle chaincode querycommitted --channelID chains --name basic
+    peer lifecycle chaincode commit -o localhost:${CCPORT} --ordererTLSHostnameOverride ${ORDERER_NAME} --channelID ${CHANNEL_NAME} --name basic --version 1.0 --sequence 1 --tls --cafile $ORDERER1_TLS "${PEER_CONN_PARMS[@]}" 
+    peer lifecycle chaincode querycommitted --channelID ${CHANNEL_NAME} --name basic
 }
 
 function query_committed() {
@@ -113,7 +88,7 @@ function currency_invoke() {
     # FABRIC_CFG_PATH=$PWD/../conf/config/
 
     setGlobals org01 6001
-    peer lifecycle chaincode querycommitted --channelID chains --name basic
+    peer lifecycle chaincode querycommitted --channelID ${CHANNEL_NAME} --name basic
 
     time peer chaincode invoke -o localhost:7001 --ordererTLSHostnameOverride orderer1.ord01.chains --tls --cafile $ORDERER1_TLS -C chains -n basic "${PEER_CONN_PARMS[@]}" -c '{"function":"InitLedger","Args":[]}'
 

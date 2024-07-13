@@ -8,84 +8,55 @@
 #
 ################################################################################
 Organizations:
-# peer.main.chains
-  - &pmc
-    Name: peer.main.chains
+  - &org02
+    Name: org02MSP
     # ID to load the MSP definition as
-    ID: mainchainsMSP
+    ID: org02MSP
     # MSPDir is the filesystem path which contains the MSP configuration
-    MSPDir: ../../../../certs/plasma/peerOrganizations/main.chains/msp
-
+    MSPDir: ../../../certs/chains/peerOrganizations/org02.chains/msp
     # Policies defines the set of policies at this level of the config tree
     # For organization policies, their canonical path is usually
     #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
     Policies:
       Readers:
         Type: Signature
-        Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.peer', 'mainchainsMSP.client', 'plaschainsMSP.admin', 'plaschainsMSP.peer', 'plaschainsMSP.client')"
+        Rule: "OR('org02MSP.admin', 'org02MSP.peer', 'org02MSP.client', 'org01MSP.admin', 'org01MSP.peer', 'org01MSP.client')"
       Writers:
         Type: Signature
-        Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.client', 'plaschainsMSP.admin', 'plaschainsMSP.client')"
+        Rule: "OR('org02MSP.admin', 'org02MSP.client')"
       Admins:
         Type: Signature
-        Rule: "OR('mainchainsMSP.admin', 'plaschainsMSP.admin')"
+        Rule: "OR('org02MSP.admin')"
       Endorsement:
         Type: Signature
-        Rule: "OR('mainchainsMSP.peer', 'plaschains.peer')"
+        Rule: "OR('org02MSP.peer')"
 
-# peer.slim.plaschains
-  - &psp
-    Name: peer.slim.plaschains
+  - &orderer2
+    Name: ord02
     # ID to load the MSP definition as
-    ID: plaschainsMSP
+    ID: ord02MSP
     # MSPDir is the filesystem path which contains the MSP configuration
-    MSPDir: ../../../../certs/plasma/peerOrganizations/slim.plaschains/msp
-
+    MSPDir: ../../../certs/chains/ordererOrganizations/ord02.chains/msp
     # Policies defines the set of policies at this level of the config tree
     # For organization policies, their canonical path is usually
     #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
     Policies:
       Readers:
         Type: Signature
-        Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.peer', 'mainchainsMSP.client', 'plaschainsMSP.admin', 'plaschainsMSP.peer', 'plaschainsMSP.client')"
+        Rule: "OR('ord02MSP.member')"
       Writers:
         Type: Signature
-        Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.client', 'plaschainsMSP.admin', 'plaschainsMSP.client')"
+        Rule: "OR('ord02MSP.member')"
       Admins:
         Type: Signature
-        Rule: "OR('mainchainsMSP.admin', 'plaschainsMSP.admin')"
+        Rule: "OR('ord02MSP.admin')"
       Endorsement:
         Type: Signature
-        Rule: "OR('mainchainsMSP.peer', 'plaschains.peer')"
-
-# orderer.slim.plaschains
-  - &osp
-    Name: orderer.slim.plaschains
-    # ID to load the MSP definition as
-    ID: ordererplaschainsMSP
-    # MSPDir is the filesystem path which contains the MSP configuration
-    MSPDir: ../../../../certs/plasma/ordererOrganizations/slim.plaschains/msp
-
-    # Policies defines the set of policies at this level of the config tree
-    # For organization policies, their canonical path is usually
-    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
-    Policies:
-      Readers:
-        Type: Signature
-        Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.peer', 'mainchainsMSP.client', 'plaschainsMSP.admin', 'plaschainsMSP.peer', 'plaschainsMSP.client')"
-      Writers:
-        Type: Signature
-        Rule: "OR('mainchainsMSP.admin', 'mainchainsMSP.client', 'plaschainsMSP.admin', 'plaschainsMSP.client')"
-      Admins:
-        Type: Signature
-        Rule: "OR('mainchainsMSP.admin', 'plaschainsMSP.admin')"
-      Endorsement:
-        Type: Signature
-        Rule: "OR('mainchainsMSP.peer', 'plaschainsMSP.peer')"
+        Rule: "OR('ord02MSP.peer')"
     # OrdererEndpoints is a list of all orderers this org runs which clients
     # and peers may to connect to to push transactions and receive blocks respectively.
     OrdererEndpoints:
-      - orderer.slim.plaschains:7001
+      - orderer1.ord02.chains:7002
 
 ################################################################################
 #
@@ -163,7 +134,7 @@ Application: &ApplicationDefaults
       Rule: "ANY Writers"
     Admins:
       Type: ImplicitMeta
-      Rule: "MAJORITY Admins"
+      Rule: "ANY Admins"
     LifecycleEndorsement:
       Type: ImplicitMeta
       Rule: "ANY Endorsement"
@@ -187,7 +158,7 @@ Orderer: &OrdererDefaults
   # as TLS validation.  The preferred way to specify orderer addresses is now
   # to include the OrdererEndpoints item in your org definition
   Addresses:
-    - orderer.slim.plaschains:7001
+    - orderer1.ord02.chains:7002
   # Batch Timeout: The amount of time to wait before creating a batch
   BatchTimeout: 0.5s
   # Batch Size: Controls the number of messages batched into a block
@@ -245,7 +216,7 @@ Channel: &ChannelDefaults
     # By default, who may modify elements at this config level
     Admins:
       Type: ImplicitMeta
-      Rule: "MAJORITY Admins"
+      Rule: "ANY Admins"
   # Capabilities describes the channel level capabilities, see the
   # dedicated Capabilities section elsewhere in this file for a full
   # description
@@ -267,18 +238,17 @@ Profiles:
       OrdererType: etcdraft
       EtcdRaft:
         Consenters:
-          - Host: orderer.slim.plaschains
-            Port: 7001
-            ClientTLSCert: ../../../../certs/plasma/ordererOrganizations/slim.plaschains/orderers/orderer.slim.plaschains/tls/server.crt
-            ServerTLSCert: ../../../../certs/plasma/ordererOrganizations/slim.plaschains/orderers/orderer.slim.plaschains/tls/server.crt
+          - Host: orderer1.ord02.chains
+            Port: 7002
+            ClientTLSCert: ../../../certs/chains/ordererOrganizations/ord02.chains/orderers/orderer1.ord02.chains/tls/server.crt
+            ServerTLSCert: ../../../certs/chains/ordererOrganizations/ord02.chains/orderers/orderer1.ord02.chains/tls/server.crt
       Capabilities: *OrdererCapabilities
       Addresses:
-        - orderer.slim.plaschains:7001
+        - orderer1.ord02.chains:7002
       Organizations:
-        - *osp
+        - *orderer2
     Application:
       <<: *ApplicationDefaults
       Organizations:
-        - *psp
-        - *pmc
+        - *org02
       Capabilities: *ApplicationCapabilities

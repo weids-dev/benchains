@@ -16,22 +16,30 @@ function env() {
     export ORDERER1_TLS="${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem"
 }
 
-function env-plasma() {
+
+function env-args() {
+    # env-args confdir orderername networkname
+    # env-args single-endorsement ord01.chains chains
+    local confdir=$1
+    local orderername=$2
+    local networkname=$3
+    export ORDERER_NAME=orderer1.${orderername}
+    
     export PATH="$PWD/../bin:$PATH"
     export PATH="$PWD:$PATH"
 
-    export FABRIC_CFG_PATH=${PWD}/../slim/plasma-chain/config/
+    export FABRIC_CFG_PATH=${PWD}/../slim/${confdir}/config/
 
     # Two compose files
-    export COMPOSE_FILES="-f ../slim/plasma-chain/compose/compose.yaml -f ../slim/plasma-chain/compose/docker/docker-compose.yaml"
+    export COMPOSE_FILES="-f ../slim/${confdir}/compose/compose.yaml -f ../slim/${confdir}/compose/docker/docker-compose.yaml"
 
-    # get docker sock path from environment variable
+    # Get docker sock path from environment variable
     export sock="${docker_host:-/var/run/docker.sock}"
     export docker_sock="${sock##unix://}"
-    export CHANNEL_NAME=plaschains
-    export ORDERER1_TLS="${PWD}/../certs/plasma/ordererOrganizations/slim.plaschains/tlsca/tlsca.slim.plaschains-cert.pem"
-    export ORDERER2_TLS="${PWD}/../certs/plasma/ordererOrganizations/main.chains/tlsca/tlsca.main.chains-cert.pem"
+    export CHANNEL_NAME=${networkname}
+    export ORDERER1_TLS="${PWD}/../certs/chains/ordererOrganizations/${orderername}/tlsca/tlsca.${orderername}-cert.pem"
 }
+    
 
 function env-single-endorsement() {
     export PATH="$PWD/../bin:$PATH"
@@ -100,21 +108,6 @@ function setGlobals() {
     export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/../certs/chains/peerOrganizations/${orgname}.chains/tlsca/tlsca.${orgname}.chains-cert.pem
     export CORE_PEER_LOCALMSPID="${orgname}MSP"
     export CORE_PEER_MSPCONFIGPATH=${PWD}/../certs/chains/peerOrganizations/${orgname}.chains/users/Admin@${orgname}.chains/msp
-    export CORE_PEER_ADDRESS=localhost:${port}
-}
-
-# Set environment variables for the peer org for plasma
-function setGlobals_plasma() {
-    # setGlobals orgname, name, port, mspname
-    local orgname=$1
-    local name=$2
-    local port=$3
-    local mspname=$4
-    # export CORE_PEER_TLS_ENABLED=true # enable TLS
-    # export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/../certs/plasma/peerOrganizations/${orgname}.${name}/tlsca/tlsca.${orgname}.${name}-cert.pem
-    export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/../certs/plasma/peerOrganizations/${orgname}.${name}/peers/peer.${orgname}.${name}/tls/ca.crt
-    export CORE_PEER_LOCALMSPID="${mspname}MSP"
-    export CORE_PEER_MSPCONFIGPATH=${PWD}/../certs/plasma/peerOrganizations/${orgname}.${name}/users/Admin@${orgname}.${name}/msp
     export CORE_PEER_ADDRESS=localhost:${port}
 }
 

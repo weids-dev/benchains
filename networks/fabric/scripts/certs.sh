@@ -12,15 +12,3 @@ function layer1_certs() {
     cd scripts
 }
 
-function plasma_certs() {
-    # Generate all the certificase for plasma & main fabric cluster using cryptogen
-    cd ..
-    rm -rf certs
-    mkdir certs certs/chains
-    mkdir certs/plasma
-
-    # crypto-config.yaml contains two channels' config
-    cryptogen generate --config=conf/crypto-config.yaml --output="certs/plasma"
-
-    cd scripts
-}

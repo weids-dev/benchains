@@ -18,15 +18,6 @@ function start_nodes() {
     fi
 }
 
-function start_nodes_plasma() {
-    DOCKER_SOCK="${DOCKER_SOCK}" docker-compose ${COMPOSE_FILES} up -d 2>&1
-
-    docker ps -a
-    if [ $? -ne 0 ]; then
-	fatalln "Unable to start network"
-    fi
-}
-
 # Create the genesis block in a .block file based on configtx.yaml
 function create_genesis() {
     which configtxgen
@@ -37,28 +28,6 @@ function create_genesis() {
 	mkdir ../channel-artifacts
     fi
     configtxgen -profile Raft -outputBlock ../channel-artifacts/${CHANNEL_NAME}.block -channelID ${CHANNEL_NAME} 
-}
-
-# Create the genesis block in a .block file based on configtx.yaml
-function create_genesis_plasma() {
-    which configtxgen
-
-    if [ "$?" -ne 0 ]; then
-	echo "configtxgen tool not found."
-    fi
-
-    if [ ! -d "../channel-artifacts" ]; then
-	mkdir ../channel-artifacts
-    fi
-
-    # For chains
-    configtxgen -profile Raft -outputBlock ../channel-artifacts/chains.block -channelID chains
-
-    # For plaschains
-    export FABRIC_CFG_PATH=${PWD}/../slim/plasma-chain/config/plasconfig
-    configtxgen -profile Raft -outputBlock ../channel-artifacts/${CHANNEL_NAME}.block -channelID ${CHANNEL_NAME} 
-
-    export FABRIC_CFG_PATH=${PWD}/../slim/plasma-chain/config
 }
 
 function create_channel() {
@@ -77,38 +46,9 @@ function create_channel() {
         export ORDERER_ADMIN_TLS_PRIVATE_KEY="${PWD}/../certs/chains/ordererOrganizations/${ORDERER}.chains/orderers/orderer1.${ORDERER}.chains/tls/server.key"
 
         # Create the channel and join the orderer to the channel.
-        osnadmin channel join --channelID chains --config-block ${PWD}/../channel-artifacts/chains.block -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
-        osnadmin channel list --channelID chains -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
+       osnadmin channel join --channelID ${CHANNEL_NAME} --config-block ${PWD}/../channel-artifacts/${CHANNEL_NAME}.block -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
+        osnadmin channel list --channelID ${CHANNEL_NAME} -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
     done
-}
-
-function create_channel_plasma() {
-    which osnadmin
-    if [ "$?" -ne 0 ]; then
-        fatalln "osnadmin tool not found. Please run with -i to install it"
-    fi
-
-    ORDERER="main"
-    PORT="8201"
-    # Hardcoded, join two orderers into two channels
-    export ORDERER_CA="${PWD}/../certs/plasma/ordererOrganizations/${ORDERER}.chains/tlsca/tlsca.${ORDERER}.chains-cert.pem"
-    export ORDERER_ADMIN_TLS_SIGN_CERT="${PWD}/../certs/plasma/ordererOrganizations/${ORDERER}.chains/orderers/orderer.${ORDERER}.chains/tls/server.crt"
-    export ORDERER_ADMIN_TLS_PRIVATE_KEY="${PWD}/../certs/plasma/ordererOrganizations/${ORDERER}.chains/orderers/orderer.${ORDERER}.chains/tls/server.key"
-
-    # Create the channel and join the orderer to the channel.
-    osnadmin channel join --channelID chains --config-block ${PWD}/../channel-artifacts/chains.block -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
-    # osnadmin channel list --channelID chains -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
-
-    ORDERER="slim"
-    PORT="7201"
-    # Hardcoded, join two orderers into two channels
-    export ORDERER_CA="${PWD}/../certs/plasma/ordererOrganizations/${ORDERER}.plaschains/tlsca/tlsca.${ORDERER}.plaschains-cert.pem"
-    export ORDERER_ADMIN_TLS_SIGN_CERT="${PWD}/../certs/plasma/ordererOrganizations/${ORDERER}.plaschains/orderers/orderer.${ORDERER}.plaschains/tls/server.crt"
-    export ORDERER_ADMIN_TLS_PRIVATE_KEY="${PWD}/../certs/plasma/ordererOrganizations/${ORDERER}.plaschains/orderers/orderer.${ORDERER}.plaschains/tls/server.key"
-
-    # Create the channel and join the orderer to the channel.
-    osnadmin channel join --channelID plaschains --config-block ${PWD}/../channel-artifacts/plaschains.block -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
-    osnadmin channel list --channelID plaschains -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
 }
 
 function join_channel() {
@@ -123,7 +63,6 @@ function join_channel() {
     set -x # enable detailed logging
     # peer channel
     peer channel join -b ../channel-artifacts/${CHANNEL_NAME}.block >&log.txt
-    peer channel getinfo -c chains > info2.txt
     res=$?
     { set +x; } 2>/dev/null
 		let rc=$res
@@ -146,55 +85,6 @@ function peer_join() {
     set -x # enable detailed logging
     # peer channel
     peer channel join -b ../channel-artifacts/$1.block >&log.txt
-    res=$?
-    { set +x; } 2>/dev/null
-		let rc=$res
-		COUNTER=$(expr $COUNTER + 1)
-	done
-    cat log.txt
-    verifyResult $res "After $MAX_RETRY attempts, peer${ORG} has failed to join channel"
-}
-
-function join_channel_plasma() {
-    # 1. Join peer.slim.plaschains to plaschains
-    local orgname="slim"
-    local port=6001
-    export CORE_PEER_TLS_ENABLED=true
-    export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/../certs/plasma/peerOrganizations/${orgname}.plaschains/tlsca/tlsca.${orgname}.plaschains-cert.pem
-    export CORE_PEER_LOCALMSPID=plaschainsMSP
-    export CORE_PEER_MSPCONFIGPATH=${PWD}/../certs/plasma/peerOrganizations/${orgname}.plaschains/users/Admin@${orgname}.plaschains/msp
-    export CORE_PEER_ADDRESS=localhost:${port}
-    export ORDERER_TLSCA_FILE=${PWD}/../certs/plasma/ordererOrganizations/slim.plaschains/orderers/orderer.slim.plaschains/tls/server.crt
-    export ORDERER_CA="${PWD}/../certs/plasma/ordererOrganizations/${orgname}.plaschains/tlsca/tlsca.${orgname}.plaschains-cert.pem"
-
-    # Hardcoded, join two orderers into two channels
-    peer_join plaschains
-    set -x
-    peer channel fetch newest newest_plasma.block -c plaschains --orderer localhost:7001 --tls --cafile $ORDERER_TLSCA_FILE
-    peer channel fetch config config_block.pb -o localhost:7001 --ordererTLSHostnameOverride orderer.slim.plaschains -c plaschains --tls --cafile "$ORDERER_CA"
-    configtxlator proto_decode --input config_block.pb --type common.Block --output config_block.json | jq .data.data[0].payload.data.config > config.json
-    set +x
-
-    # 2. Join peer.main.chains to mainchains and plaschains
-    local orgname="main"
-    local port=5001
-    export CORE_PEER_TLS_ENABLED=true
-    export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/../certs/plasma/peerOrganizations/${orgname}.chains/tlsca/tlsca.${orgname}.chains-cert.pem
-    export CORE_PEER_LOCALMSPID=mainchainsMSP
-    export CORE_PEER_MSPCONFIGPATH=${PWD}/../certs/plasma/peerOrganizations/${orgname}.chains/users/Admin@${orgname}.chains/msp
-    export CORE_PEER_ADDRESS=localhost:${port}
-    local rc=1
-    local COUNTER=1
-    local DELAY=2
-    local MAX_RETRY=3
-
-    ## Sometimes Join takes time, hence retry
-	while [ $rc -ne 0 -a $COUNTER -lt $MAX_RETRY ] ; do
-    sleep $DELAY
-    set -x # enable detailed logging
-    # peer channel
-    peer_join chains  
-    peer channel join -b newest_plasma.block >&log.txt
     res=$?
     { set +x; } 2>/dev/null
 		let rc=$res

@@ -76,11 +76,11 @@ cd ../../networks/fabric/scripts/
 while getopts ":hicntlsaefpd" opt; do
     case $opt in
 	i)
-			fabric_bin   # bin.sh
-			;;
+	    fabric_bin   # bin.sh
+	    ;;
 	c)
-			layer1_certs # certs.sh
-			;;
+	    layer1_certs # certs.sh
+	    ;;
 	n)
 	    start_nodes  # conf.sh
 	    ;;
@@ -91,48 +91,32 @@ while getopts ":hicntlsaefpd" opt; do
 	    create_genesis
 	    create_channel 1 2 3
 	    join_channels
-	    set_anchor_peers
+	    # set_anchor_peers
 	    ;;
 	s)
 	    # package_chaincode ${PWD}/../../../chaincodes/sample-atcc/
 	    package_chaincode ${PWD}/../../../chaincodes/wrappers/
 	    install ${PWD}/../channel-artifacts/cc.tar.gz
 	    approve
-	    commit
+	    # commit
 	    ;;
 	a)
 	    # atcc_invoke 1 2 3 4 5 6 7 8
 	    currency_invoke 1 2 3 4 5 6 7 8
 	    # currency_invoke 2
 	    ;;
-	p)
-	    # plasma
-	    plasma_certs # certs.sh
-	    env-plasma # env.sh
-	    start_nodes_plasma # conf.sh
-
-	    # Two genesis blocks
-	    create_genesis_plasma # conf.sh
-	    create_channel_plasma # conf.sh
-
-	    join_channel_plasma # conf.sh
-
-	    package_chaincode ${PWD}/../../../chaincodes/wrappers/ # chaincode.sh
-	    export pkg=${PWD}/../channel-artifacts/cc.tar.gz
-			
-			install_chaincode_plasma main chains 5001 mainchains # chaincode.sh
-			approve_chaincode_main main chains 5001 mainchains $PACKAGE orderer.main.chains 8001
-
-			# install_chaincode_plasma slim plaschains 6001 plaschains # chaincode.sh
-			# approve_chaincode_plasma slim plaschains 6001 plaschains $PACKAGE orderer.slim.plaschains 7001
-	    ;;
 	e)
-	    # single_endorsement
-	    env-single-endorsement # env.sh
+	    # single_endorsement (ord01, org01)
+	    # layer 1 mainchain
+	    # Standardized Workflow
+	    env-args single-endorsement ord01.chains chains  # env.sh
 
 	    start_nodes # conf.sh
+
 	    create_genesis
+
 	    create_channel 1
+
 	    join_channel org01 6001
 
 	    package_chaincode ${PWD}/../../../chaincodes/wrappers/
@@ -143,6 +127,23 @@ while getopts ":hicntlsaefpd" opt; do
 	    approve_chaincode org01 6001 $PACKAGE 7001
 	    commit_chaincode 1
 	    query_committed org01 6001
+	    ;;
+	d)
+	    env-args chains02 ord02.chains chains02  # env.sh
+
+	    start_nodes # conf.sh
+	    create_genesis
+	    create_channel 2
+	    join_channel org02 6002
+
+	    package_chaincode ${PWD}/../../../chaincodes/wrappers/
+	    export pkg=${PWD}/../channel-artifacts/cc.tar.gz
+	    install_chaincode org02 6002
+	    echo $PACKAGE
+
+	    approve_chaincode org02 6002 $PACKAGE 7002
+	    commit_chaincode 2
+	    query_committed org02 6002
 	    ;;
 	f)
 	    # four_endorsement
