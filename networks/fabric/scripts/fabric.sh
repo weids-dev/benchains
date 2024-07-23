@@ -1,4 +1,4 @@
-#!/bin/bash
+#/bin/bash
 # The main file to start, manipulate the layer 1 fabric network for the benchains
 
 . env.sh
@@ -57,7 +57,7 @@ function approve() {
 }
 
 function commit() {
-    commit_chaincode 1 2 3 4 5 6 7 8
+    commit_chaincode_2 1 2 3 4 5 6 7 8
 
     query_committed org02 6002
     query_committed org04 6004
@@ -73,7 +73,7 @@ go mod tidy && go mod vendor
 cd ../../networks/fabric/scripts/
 
 # Main script logic
-while getopts ":hicntlsaefpd" opt; do
+while getopts ":hicntlsaefpdw" opt; do
     case $opt in
 	i)
 	    fabric_bin   # bin.sh
@@ -91,19 +91,22 @@ while getopts ":hicntlsaefpd" opt; do
 	    create_genesis
 	    create_channel 1 2 3
 	    join_channels
-	    # set_anchor_peers
+	    set_anchor_peers
 	    ;;
 	s)
 	    # package_chaincode ${PWD}/../../../chaincodes/sample-atcc/
 	    package_chaincode ${PWD}/../../../chaincodes/wrappers/
 	    install ${PWD}/../channel-artifacts/cc.tar.gz
 	    approve
-	    # commit
+	    commit
 	    ;;
 	a)
 	    # atcc_invoke 1 2 3 4 5 6 7 8
-	    currency_invoke 1 2 3 4 5 6 7 8
-	    # currency_invoke 2
+	    # currency_invoke 1 2 3 4 5 6 7 8
+	    # currency_invoke_2 1
+	    env-args chains02 ord02.chains chains02  # env.sh
+	    set -x
+	    currency_invoke_3 2
 	    ;;
 	e)
 	    # single_endorsement (ord01, org01)
@@ -112,12 +115,21 @@ while getopts ":hicntlsaefpd" opt; do
 	    env-args single-endorsement ord01.chains chains  # env.sh
 
 	    start_nodes # conf.sh
-
 	    create_genesis
-
 	    create_channel 1
 
 	    join_channel org01 6001
+
+	    # Join mainchain peer to plasma chain
+	    export ORDERER_NAME=orderer1.ord02.chains
+	    export CHANNEL_NAME=chains02
+	    export ORDERER1_TLS="${PWD}/../certs/chains/ordererOrganizations/ord02.chains/tlsca/tlsca.ord02.chains-cert.pem"
+
+	    join_channel org01 6001
+
+	    export ORDERER_NAME=orderer1.ord01.chains
+	    export CHANNEL_NAME=chains
+	    export ORDERER1_TLS="${PWD}/../certs/chains/ordererOrganizations/ord01.chains/tlsca/tlsca.ord01.chains-cert.pem"
 
 	    package_chaincode ${PWD}/../../../chaincodes/wrappers/
 	    export pkg=${PWD}/../channel-artifacts/cc.tar.gz
@@ -126,27 +138,60 @@ while getopts ":hicntlsaefpd" opt; do
 
 	    approve_chaincode org01 6001 $PACKAGE 7001
 	    commit_chaincode 1
-	    query_committed org01 6001
+	    currency_invoke_2 1
 	    ;;
 	d)
+	    # plasma chain (chains02)
 	    env-args chains02 ord02.chains chains02  # env.sh
 
 	    start_nodes # conf.sh
 	    create_genesis
 	    create_channel 2
+	    
 	    join_channel org02 6002
 
+	    # package_chaincode ${PWD}/../../../chaincodes/wrappers/
+	    # export pkg=${PWD}/../channel-artifacts/cc.tar.gz
+	    # install_chaincode org02 6002
+	    # echo $PACKAGE
+	    # approve_chaincode_2 org02 6002 $PACKAGE 7002 pasic
+	    # commit_chaincode 2
+	    # query_committed org02 6002
+	    # currency_invoke_3 2
+	    ;;
+	w)
+	    # install chaincode for mainchain and plasma chain
+	    # run after bringing up all nodes
+	    
+	    # 1. package chaincode
 	    package_chaincode ${PWD}/../../../chaincodes/wrappers/
-	    export pkg=${PWD}/../channel-artifacts/cc.tar.gz
-	    install_chaincode org02 6002
-	    echo $PACKAGE
 
-	    approve_chaincode org02 6002 $PACKAGE 7002
-	    commit_chaincode 2
-	    query_committed org02 6002
+	    # 2. install chaincode on plasma chains
+	    env-args single-endorsement ord02.chains chains02
+	    install_chaincode org01 6001 # chains02
+	    env-args chains02 ord02.chains chains02
+	    install_chaincode org02 6002 # chains02
+
+	    # 3. approve chaincode for plasma chain orderer (chains02) with name "pasic"
+	    env-args single-endorsement ord02.chains chains02
+	    approve_chaincode_2 org01 6001 $PACKAGE 7002 pasic
+	    env-args chains02 ord02.chains chains02
+	    approve_chaincode_2 org02 6002 $PACKAGE 7002 pasic
+
+	    # 4. commit chaincode
+	    commit_chaincode_2 1 2
+
+	    # 5. execute chanicode on chains02
+	    currency_invoke_3 1 2
+
+	    # 6. verify the result
+	    currency_query_3 2
+	    currency_query_3 1
+
+	    env-args single-endorsement ord01.chains chains
+	    currency_query_2 1
 	    ;;
 	f)
-	    # four_endorsement
 	    env-four-endorsement # env.sh
 	    start_nodes # conf.sh
 	    create_genesis
@@ -174,7 +219,7 @@ while getopts ":hicntlsaefpd" opt; do
 	    approve_chaincode org03 6003 $PACKAGE 7001
 	    approve_chaincode org04 6004 $PACKAGE 7001
 
-	    commit_chaincode 1 2 3 4
+	    commit_chaincode_2 1 2 3 4
 	    query_committed org01 6001
 	    query_committed org02 6002
 	    query_committed org03 6003
@@ -196,6 +241,6 @@ while getopts ":hicntlsaefpd" opt; do
 	    ;;
         \?)
             echo "Invalid option: -$OPTARG" >&2
-            ;;
+	    ;;
     esac
 done

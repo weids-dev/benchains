@@ -57,6 +57,7 @@ Organizations:
     # and peers may to connect to to push transactions and receive blocks respectively.
     OrdererEndpoints:
       - orderer1.ord01.chains:7001
+      - localhost:7001
 
 ################################################################################
 #

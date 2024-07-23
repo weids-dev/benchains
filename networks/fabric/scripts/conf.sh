@@ -72,28 +72,18 @@ function join_channel() {
     verifyResult $res "After $MAX_RETRY attempts, peer${ORG} has failed to join channel"
 }
 
-
-function peer_join() {
-    # peer_join channel_name
-    local rc=1
-    local COUNTER=1
-    local DELAY=2
-    local MAX_RETRY=3
-    ## Sometimes Join takes time, hence retry
-	while [ $rc -ne 0 -a $COUNTER -lt $MAX_RETRY ] ; do
-    sleep $DELAY
-    set -x # enable detailed logging
-    # peer channel
-    peer channel join -b ../channel-artifacts/$1.block >&log.txt
-    res=$?
-    { set +x; } 2>/dev/null
-		let rc=$res
-		COUNTER=$(expr $COUNTER + 1)
-	done
-    cat log.txt
-    verifyResult $res "After $MAX_RETRY attempts, peer${ORG} has failed to join channel"
+function fetch_channel() {
+    # fetch the newest block
+    # fetch_channel networkname ordererport blockname
+    # fetch_channel chains02 7001 newest_chains
+    local networkname=$1
+    local ordererport=$2
+    local blockname=$3
+ 
+    # TODO: Fix this ord02
+    export ORDERER_TLSCA_FILE=${PWD}/../certs/chains/ordererOrganizations/ord02.chains/orderers/orderer1.ord02.chains/tls/server.crt
+    peer channel fetch newest ${blockname}.block -c ${networkname} --orderer localhost:$ordererport --tls --cafile $ORDERER_TLSCA_FILE
 }
-
 
 function set_anchor() {
     docker exec cli ./scripts/anchor.sh $1 $2

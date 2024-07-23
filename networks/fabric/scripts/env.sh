@@ -5,6 +5,7 @@ function env() {
     export PATH="$PWD:$PATH"
 
     export FABRIC_CFG_PATH=${PWD}/../conf/config
+    export ORDERER_NAME=orderer1.ord01.chains
 
     # Two compose files
     export COMPOSE_FILES="-f ../conf/compose/compose.yaml -f ../conf/compose/docker/docker-compose.yaml"
@@ -38,6 +39,7 @@ function env-args() {
     export docker_sock="${sock##unix://}"
     export CHANNEL_NAME=${networkname}
     export ORDERER1_TLS="${PWD}/../certs/chains/ordererOrganizations/${orderername}/tlsca/tlsca.${orderername}-cert.pem"
+    export GODEBUG=netdns=go
 }
     
 

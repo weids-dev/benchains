@@ -8,6 +8,29 @@
 #
 ################################################################################
 Organizations:
+  - &org01
+    Name: org01MSP
+    # ID to load the MSP definition as
+    ID: org01MSP
+    # MSPDir is the filesystem path which contains the MSP configuration
+    MSPDir: ../../../certs/chains/peerOrganizations/org01.chains/msp
+    # Policies defines the set of policies at this level of the config tree
+    # For organization policies, their canonical path is usually
+    #   /Channel/<Application|Orderer>/<OrgName>/<PolicyName>
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('org02MSP.admin', 'org02MSP.peer', 'org02MSP.client', 'org01MSP.admin', 'org01MSP.peer', 'org01MSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('org01MSP.admin', 'org01MSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('org01MSP.admin', 'org02MSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('org01MSP.peer', 'org02MSP.peer')"
+
   - &org02
     Name: org02MSP
     # ID to load the MSP definition as
@@ -23,13 +46,13 @@ Organizations:
         Rule: "OR('org02MSP.admin', 'org02MSP.peer', 'org02MSP.client', 'org01MSP.admin', 'org01MSP.peer', 'org01MSP.client')"
       Writers:
         Type: Signature
-        Rule: "OR('org02MSP.admin', 'org02MSP.client')"
+        Rule: "OR('org02MSP.admin', 'org02MSP.client', 'org01MSP.admin', 'org01MSP.client')"
       Admins:
         Type: Signature
-        Rule: "OR('org02MSP.admin')"
+        Rule: "OR('org02MSP.admin', 'org01MSP.admin')"
       Endorsement:
         Type: Signature
-        Rule: "OR('org02MSP.peer')"
+        Rule: "OR('org02MSP.peer', 'org01MSP.peer')"
 
   - &orderer2
     Name: ord02
@@ -43,20 +66,21 @@ Organizations:
     Policies:
       Readers:
         Type: Signature
-        Rule: "OR('ord02MSP.member')"
+        Rule: "OR('org02MSP.admin', 'org02MSP.peer', 'org02MSP.client', 'org01MSP.admin', 'org01MSP.peer', 'org01MSP.client', 'ord01MSP.member', 'ord02MSP.member')"
       Writers:
         Type: Signature
-        Rule: "OR('ord02MSP.member')"
+        Rule: "OR('org02MSP.admin', 'org02MSP.peer', 'org02MSP.client', 'org01MSP.admin', 'org01MSP.peer', 'org01MSP.client', 'ord01MSP.member', 'ord02MSP.member')"
       Admins:
         Type: Signature
-        Rule: "OR('ord02MSP.admin')"
+        Rule: "OR('org02MSP.admin', 'org02MSP.peer', 'org02MSP.client', 'org01MSP.admin', 'org01MSP.peer', 'org01MSP.client', 'ord01MSP.member', 'ord02MSP.member')"
       Endorsement:
         Type: Signature
-        Rule: "OR('ord02MSP.peer')"
+        Rule: "OR('org02MSP.admin', 'org02MSP.peer', 'org02MSP.client', 'org01MSP.admin', 'org01MSP.peer', 'org01MSP.client', 'ord01MSP.member', 'ord02MSP.member')"
     # OrdererEndpoints is a list of all orderers this org runs which clients
     # and peers may to connect to to push transactions and receive blocks respectively.
     OrdererEndpoints:
       - orderer1.ord02.chains:7002
+      
 
 ################################################################################
 #
@@ -250,5 +274,6 @@ Profiles:
     Application:
       <<: *ApplicationDefaults
       Organizations:
+        - *org01
         - *org02
       Capabilities: *ApplicationCapabilities

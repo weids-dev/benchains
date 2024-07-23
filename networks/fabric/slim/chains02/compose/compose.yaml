@@ -16,7 +16,7 @@ services:
       service: hyperledger-fabric
     environment:
       - FABRIC_LOGGING_SPEC=INFO
-      # - FABRIC_LOGGING_SPEC=DEV
+      # - FABRIC_LOGGING_SPEC=DEBUG
       - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
       - ORDERER_GENERAL_LISTENPORT=7002
       - ORDERER_GENERAL_LOCALMSPID=ord02MSP
@@ -82,6 +82,7 @@ services:
       - CORE_METRICS_PROVIDER=prometheus
       - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1org02"}
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE="chains02"
     volumes:
       - ../../../certs/chains/peerOrganizations/org02.chains/peers/peer1.org02.chains:/etc/hyperledger/fabric
       - peer1.org02.chains:/var/hyperledger/production
