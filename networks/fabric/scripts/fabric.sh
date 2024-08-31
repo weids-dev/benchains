@@ -138,7 +138,7 @@ while getopts ":hicntlsaefpdw" opt; do
 
 	    approve_chaincode org01 6001 $PACKAGE 7001
 	    commit_chaincode 1
-	    currency_invoke_2 1
+	    # currency_invoke_2 1
 	    ;;
 	d)
 	    # plasma chain (chains02)
@@ -182,14 +182,14 @@ while getopts ":hicntlsaefpdw" opt; do
 	    commit_chaincode_2 1 2
 
 	    # 5. execute chanicode on chains02
-	    currency_invoke_3 1 2
+	    # currency_invoke_3 1 2
 
 	    # 6. verify the result
-	    currency_query_3 2
-	    currency_query_3 1
+	    # currency_query_3 2
+	    # currency_query_3 1
 
-	    env-args single-endorsement ord01.chains chains
-	    currency_query_2 1
+	    # env-args single-endorsement ord01.chains chains
+	    # currency_query_2 1
 	    ;;
 	f)
 	    env-four-endorsement # env.sh

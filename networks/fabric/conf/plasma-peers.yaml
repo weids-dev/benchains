@@ -1,0 +1,20 @@
+PeerOrgs:
+  - Name: main
+    Domain: main.chains
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: peer
+        SANS:
+          - localhost
+    Users:
+      Count: 1
+
+  - Name: slim
+    Domain: slim.plaschains
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: peer
+        SANS:
+          - localhost
+    Users:
+      Count: 1
