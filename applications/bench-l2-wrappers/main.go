@@ -69,7 +69,7 @@ func buildMerkleTree(transactions []TransactionData) string {
 
 	var leaves [][]byte
 	for _, tx := range transactions {
-		txHash := computeHash([]byte(tx.TxID))
+		txHash := computeHash([]byte(tx.TxID) // TODO: encode TxID + Writes on Merkle leaf
 		leaves = append(leaves, txHash)
 	}
 
