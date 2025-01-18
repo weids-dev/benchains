@@ -10,9 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"os"
 	"path"
 	"time"
+	"log"
+	"os"
+	"io"
 	"os/exec"
 
 	"github.com/hyperledger/fabric-gateway/pkg/client"
@@ -24,7 +26,6 @@ import (
 
 	"net/http"
 	"strings"
-	"log"
 )
 
 
@@ -117,28 +118,15 @@ var playerId = fmt.Sprintf("player%d", now.Unix()*1e3+int64(now.Nanosecond())/1e
 // TODO: change the rate as the time goes
 const rate string = "0.313"
 
-func createPlayerHandler(w http.ResponseWriter, r *http.Request, contract *client.Contract) {
+func plasmaHandler(w http.ResponseWriter, r *http.Request, contract *client.Contract) {
 	if r.Method != http.MethodPut {
 		if r.Method == http.MethodGet {
-			fmt.Fprintf(w, "Get all players \n")
-			getAllPlayers(contract)
-			getPlayersNum(contract)
+			queryAllMerkleRoots(contract)
 			return
 		}
 		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
 		return
 	}
-
-	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) != 3 {
-		http.Error(w, "Invalid URL format", http.StatusBadRequest)
-		return
-	}
-	playerId := parts[2]
-
-	fmt.Fprintf(w, "Creating player with ID: %s\n", playerId)
-	createPlayer(contract, playerId)
-	fmt.Fprintf(w, "PUT request processed for playerId: %s", playerId)
 }
 
 func depositHandler(w http.ResponseWriter, r *http.Request, contract *client.Contract) {
@@ -157,9 +145,9 @@ func depositHandler(w http.ResponseWriter, r *http.Request, contract *client.Con
 	USD := parts[3]
 	playerId := parts[4]
 
-	fmt.Fprintf(w, "Depositing for player %s with txID %s and amount %s USD\n", playerId, transactionId, USD)
+	log.Printf("Depositing for player %s with txID %s and amount %s USD\n", playerId, transactionId, USD)
 	recordBankTransaction(contract, playerId, USD, transactionId)
-	fmt.Fprintf(w, "Finish depositing for player %s with txID %s and amount %s USD\n", playerId, transactionId, USD)
+	log.Printf("Finish depositing for player %s with txID %s and amount %s USD\n", playerId, transactionId, USD)
 }
 
 func exchangeHandler(w http.ResponseWriter, r *http.Request, contract *client.Contract) {
@@ -177,9 +165,9 @@ func exchangeHandler(w http.ResponseWriter, r *http.Request, contract *client.Co
 	transactionId := parts[2]
 	playerId := parts[3]
 
-	fmt.Fprintf(w, "Exchanging in-game currency for player %s with txID %s\n", playerId, transactionId)
+	log.Printf("Exchanging in-game currency for player %s with txID %s\n", playerId, transactionId)
 	exchangeInGameCurrency(contract, playerId, transactionId, rate)
-	fmt.Fprintf(w, "finish exchanging in-game currency for player %s with txID %s and rate %s\n", playerId, transactionId, rate)
+	log.Printf("finish exchanging in-game currency for player %s with txID %s and rate %s\n", playerId, transactionId, rate)
 }
 
 func bankExchangeHandler(w http.ResponseWriter, r *http.Request, contract *client.Contract) {
@@ -198,16 +186,47 @@ func bankExchangeHandler(w http.ResponseWriter, r *http.Request, contract *clien
 	USD := parts[3]
 	playerId := parts[4]
 
-	fmt.Fprintf(w, "Depositing for player %s with txID %s and amount %s USD\n", playerId, transactionId, USD)
+	log.Printf("Depositing for player %s with txID %s and amount %s USD\n", playerId, transactionId, USD)
 	recordBankTransaction(contract, playerId, USD, transactionId)
-	fmt.Fprintf(w, "Finish depositing for player %s with txID %s and amount %s USD\n", playerId, transactionId, USD)
+	log.Printf("Finish depositing for player %s with txID %s and amount %s USD\n", playerId, transactionId, USD)
 
-	fmt.Fprintf(w, "Exchanging in-game currency for player %s with txID %s\n", playerId, transactionId)
+	log.Printf("Exchanging in-game currency for player %s with txID %s\n", playerId, transactionId)
 	exchangeInGameCurrency(contract, playerId, transactionId, rate)
-	fmt.Fprintf(w, "finish exchanging in-game currency for player %s with txID %s and rate %s\n", playerId, transactionId, rate)
+	log.Printf("finish exchanging in-game currency for player %s with txID %s and rate %s\n", playerId, transactionId, rate)
 }
 
+func createPlayerHandler(w http.ResponseWriter, r *http.Request, contract *client.Contract) {
+	if r.Method != http.MethodPut {
+		if r.Method == http.MethodGet {
+			getAllPlayers(contract)
+			getPlayersNum(contract)
+			return
+		}
+		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) != 3 {
+		http.Error(w, "Invalid URL format", http.StatusBadRequest)
+		return
+	}
+	playerId := parts[2]
+
+	log.Printf("Creating player with ID: %s\n", playerId)
+	createPlayer(contract, playerId)
+	log.Printf("PUT request processed for playerId: %s", playerId)
+}
+
+var debug = false // Set this to true to enable logging
+
 func main() {
+	if debug {
+		log.SetOutput(os.Stdout)
+	} else {
+		log.SetOutput(io.Discard)
+	}
+
 	plasmaChainConfig := PeerConfig {
 		MSPID:         "org02MSP",
 			CryptoPath:    "../../networks/fabric/certs/chains/peerOrganizations/org02.chains",
@@ -304,22 +323,21 @@ func main() {
 
 	go func() {
 		for range ticker.C {
-			
 			// Step 1: Get the newest block number
 			newestBlockNumber, err := getNewestBlockNumber(syscontract, "chains02")
 
 			if err != nil {
-				fmt.Println("Error getting newest block number:", err)
+				log.Println("Error getting newest block number:", err)
 				continue
 			}
 
-			fmt.Println("Newest block number: ", newestBlockNumber)
-			fmt.Println("Newest committed block number: ", newestCommittedBlockNumber)
+			fmt.Printf("Newest block number: ", newestBlockNumber)
+			fmt.Printf(" || Newest committed block number: %s \n", newestCommittedBlockNumber)
 
 
 			// Step 2: Check if there are new blocks to process
 			if newestBlockNumber > newestCommittedBlockNumber {
-				fmt.Printf("Found new blocks to commit: %d to %d\n", newestCommittedBlockNumber+1, newestBlockNumber)
+				fmt.Printf("Found new blocks to commit: %d to %d    || ", newestCommittedBlockNumber+1, newestBlockNumber)
 
 				// Step 3: Process all blocks between newestCommittedBlockNumber + 1 and newestBlockNumber
 				for blockNumber := newestCommittedBlockNumber + 1; blockNumber <= newestBlockNumber; blockNumber++ {
@@ -338,18 +356,20 @@ func main() {
 						continue
 					}
 
+					fmt.Printf("Number of transactions in this block: %d   || ", len(transactions))
+
 					// Compute the Merkle root of the transactions
 					merkleRoot := buildMerkleTree(transactions)
 
 					// Commit the Merkle root to the root chain
-					commitMerkleRoot(root_contract, snum, merkleRoot)
+					go commitMerkleRoot(root_contract, snum, merkleRoot)
 
 					fmt.Printf("Committed Merkle root for block %d: %s\n", blockNumber, merkleRoot)
 				}
 
 				// Step 4: Update newest committed block number after processing
 				newestCommittedBlockNumber = newestBlockNumber
-				queryAllMerkleRoots(root_contract)
+				// queryAllMerkleRoots(root_contract)
 			}
 		}
 	}()
@@ -359,6 +379,7 @@ func main() {
 	   Test Functions Begin
 	*/
 
+	/*
 	// All those will be written to the ledger
 	go createPlayer(plasma_contract, "AWANG01")
 	go createPlayer(plasma_contract, "AWANG02")
@@ -433,7 +454,7 @@ func main() {
 		return
 	}
 
-	fmt.Println("Newest Block Number:", newestBlockNumber)
+	log.Println("Newest Block Number:", newestBlockNumber)
 	snum := strconv.FormatUint(newestBlockNumber, 10)
 
 	blockBytes := getBlockByNumber(syscontract, "chains02", snum)
@@ -455,16 +476,16 @@ func main() {
 
 	// Output the extracted transactions
 	for _, tx := range transactions {
-		fmt.Printf("TxID: %s\n", tx.TxID)
+		log.Printf("TxID: %s\n", tx.TxID)
 		for _, write := range tx.Writes {
-			fmt.Printf("Write: %+v\n", write)
+			log.Printf("Write: %+v\n", write)
 		}
 	}
+	*/
 
 	/*
 	   Test Functions End
 	*/
-
 
 	http.HandleFunc("/player/", func(w http.ResponseWriter, r *http.Request) {
 		createPlayerHandler(w, r, plasma_contract)
@@ -478,12 +499,15 @@ func main() {
 	http.HandleFunc("/bexchange/", func(w http.ResponseWriter, r *http.Request) {
 		bankExchangeHandler(w, r, plasma_contract)
 	})
-
-	fmt.Println("Server is listening on port 10809")
+	http.HandleFunc("/plasma/", func(w http.ResponseWriter, r *http.Request) {
+		plasmaHandler(w, r, root_contract)
+	})
 
 	if err := http.ListenAndServe(":10809", nil); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+
+	fmt.Println("Server is listening on port 10809")
 }
 
 func newGrpcConnection(config PeerConfig) *grpc.ClientConn {
@@ -551,7 +575,7 @@ func newSign(config PeerConfig) identity.Sign {
 }
 
 func commitMerkleRoot(contract *client.Contract, blockNumber, merkleRoot string) {
-	fmt.Printf("\n--> Submit Transaction: CommitMerkleRoot \n")
+	log.Printf("\n--> Submit Transaction: CommitMerkleRoot \n")
 
 	_, err := contract.SubmitTransaction("PlasmaContract:CommitMerkleRoot", blockNumber, merkleRoot)
 	if err != nil {
@@ -559,7 +583,7 @@ func commitMerkleRoot(contract *client.Contract, blockNumber, merkleRoot string)
 		panic(fmt.Errorf("failed to submit transaction: %w", err))
 	}
 
-	fmt.Printf("*** Transaction committed successfully\n")
+	log.Printf("*** Transaction committed successfully\n")
 }
 
 // This type of transaction would typically only be run once by an application the first time it was started after its
@@ -568,7 +592,7 @@ func commitMerkleRoot(contract *client.Contract, blockNumber, merkleRoot string)
 // SubmitTransaction will submit a transaction to the ledger and return its result only after it is committed to the ledger.
 // The transaction function will be evaluated on endorsing peers and then submitted to the ordering service to be committed to the ledger.
 func initLedger(contract *client.Contract) {
-	fmt.Printf("\n--> Submit Transaction: InitLedger, function creates the initial set of players on the ledger \n")
+	log.Printf("\n--> Submit Transaction: InitLedger, function creates the initial set of players on the ledger \n")
 
 	_, err := contract.SubmitTransaction("CurrencyContract:InitLedger")
 
@@ -577,12 +601,12 @@ func initLedger(contract *client.Contract) {
 		panic(fmt.Errorf("failed to submit transaction: %w", err))
 	}
 
-	fmt.Printf("*** Transaction committed successfully\n")
+	log.Printf("*** Transaction committed successfully\n")
 }
 
 // TODO: Seperate pasic and basic contract
 func initLedger2(contract *client.Contract) {
-	fmt.Printf("\n--> Submit Transaction: InitLedger, function creates the initial set of players on the ledger \n")
+	log.Printf("\n--> Submit Transaction: InitLedger, function creates the initial set of players on the ledger \n")
 
 	_, err := contract.SubmitTransaction("CurrencyContract:InitLedger")
 
@@ -591,9 +615,9 @@ func initLedger2(contract *client.Contract) {
 		panic(fmt.Errorf("failed to submit transaction: %w", err))
 	}
 
-	fmt.Printf("*** Transaction committed successfully\n")
+	log.Printf("*** Transaction committed successfully\n")
 
-	fmt.Printf("\n--> Submit Transaction: InitLedger on PlasmaContract \n")
+	log.Printf("\n--> Submit Transaction: InitLedger on PlasmaContract \n")
 
 	_, err = contract.SubmitTransaction("PlasmaContract:InitLedger")
 
@@ -602,7 +626,7 @@ func initLedger2(contract *client.Contract) {
 		panic(fmt.Errorf("failed to submit transaction: %w", err))
 	}
 
-	fmt.Printf("*** Transaction committed successfully\n")
+	log.Printf("*** Transaction committed successfully\n")
 }
 
 func queryAllMerkleRoots(contract *client.Contract) {
@@ -617,7 +641,7 @@ func queryAllMerkleRoots(contract *client.Contract) {
 
 // Evaluate a transaction to query ledger state.
 func getAllPlayers(contract *client.Contract) {
-	fmt.Println("\n--> Evaluate Transaction: GetAllPlayers, function returns all the current players on the ledger")
+	log.Println("\n--> Evaluate Transaction: GetAllPlayers, function returns all the current players on the ledger")
 
 	evaluateResult, err := contract.EvaluateTransaction("CurrencyContract:GetAllPlayers")
 	if err != nil {
@@ -787,7 +811,7 @@ func extractWrites(payload map[string]interface{}) ([]map[string]interface{}, er
 
 
 func getNewestBlockNumber(contract *client.Contract, channelName string) (uint64, error) {
-	fmt.Println("\n--> Evaluate Transaction: getChainInfo from system chaincode qscc GetChainInfo")
+	log.Println("\n--> Evaluate Transaction: getChainInfo from system chaincode qscc GetChainInfo")
 
 	// Call QSCC to get the chain info of the specified channel
 	evaluateResult, err := contract.EvaluateTransaction("GetChainInfo", channelName)
@@ -832,7 +856,7 @@ func extractNewestBlockNumber(decodedChainInfo string) (uint64, error) {
 		return 0, fmt.Errorf("failed to parse decoded chain info data: %w", err)
 	}
 
-	fmt.Println("\n ChainInfo: ", chainInfo)
+	log.Println("\n ChainInfo: ", chainInfo)
 
 	// Get the blockchain height
 	height, ok := chainInfo["height"].(string) // Block height is stored as a string in JSON
@@ -856,7 +880,7 @@ func extractNewestBlockNumber(decodedChainInfo string) (uint64, error) {
 
 
 func getBlockByNumber(contract *client.Contract, channelName string, number string) []byte {
-	fmt.Println("\n--> Evaluate Transaction: getBlock from system chaincode qscc GetBlockByNumber")
+	log.Println("\n--> Evaluate Transaction: getBlock from system chaincode qscc GetBlockByNumber")
 
 	evaluateResult, err := contract.EvaluateTransaction("GetBlockByNumber", channelName, number)
 	if err != nil {
@@ -868,7 +892,7 @@ func getBlockByNumber(contract *client.Contract, channelName string, number stri
 
 // getPlayersNum evaluates a transaction to query ledger state and prints the number of players
 func getPlayersNum(contract *client.Contract) {
-	fmt.Println("\n--> Evaluate Transaction: getPlayersNum, function returns the number of current players on the ledger")
+	log.Println("\n--> Evaluate Transaction: getPlayersNum, function returns the number of current players on the ledger")
 
 	evaluateResult, err := contract.EvaluateTransaction("CurrencyContract:GetAllPlayers")
 	if err != nil {
@@ -883,12 +907,12 @@ func getPlayersNum(contract *client.Contract) {
 	}
 
 	// Now you can accurately get the number of players 
-	fmt.Printf("*** Number of Records: %d\n", len(players))
+	log.Printf("*** Number of Records: %d\n", len(players))
 }
 
 // createPlayer directly create a player with all attr initialized default
 func createPlayer(contract *client.Contract, playerId string) {
-	fmt.Printf("\n--> Submit Transaction: CreatePlayer \n")
+	log.Printf("\n--> Submit Transaction: CreatePlayer \n")
 
 	_, err := contract.SubmitTransaction("CurrencyContract:CreatePlayer", playerId)
 	if err != nil {
@@ -896,12 +920,12 @@ func createPlayer(contract *client.Contract, playerId string) {
 		panic(fmt.Errorf("failed to submit transaction: %w", err))
 	}
 
-	fmt.Printf("*** Transaction committed successfully\n")
+	log.Printf("*** Transaction committed successfully\n")
 }
 
 // recordBankTransaction records a new bank transaction to the ledger
 func recordBankTransaction(contract *client.Contract, userID, amountUSDStr, transactionID string) {
-	fmt.Printf("\n--> Submit Transaction: RecordBankTransaction \n")
+	log.Printf("\n--> Submit Transaction: RecordBankTransaction \n")
 
 	_, err := contract.SubmitTransaction("CurrencyContract:RecordBankTransaction", userID, amountUSDStr, transactionID)
 
@@ -910,12 +934,12 @@ func recordBankTransaction(contract *client.Contract, userID, amountUSDStr, tran
 		panic(fmt.Errorf("failed to submit transaction: %w", err))
 	}
 
-	fmt.Printf("*** Transaction committed successfully\n")
+	log.Printf("*** Transaction committed successfully\n")
 }
 
 // exchangeInGameCurrency let users to exchange their deposited USD to in-game currency
 func exchangeInGameCurrency(contract *client.Contract, userID, transactionID, exchangeRateStr string) {
-	fmt.Printf("\n--> Submit Transaction: ExchangeInGameCurrency \n")
+	log.Printf("\n--> Submit Transaction: ExchangeInGameCurrency \n")
 
 	_, err := contract.SubmitTransaction("CurrencyContract:ExchangeInGameCurrency", userID, transactionID, exchangeRateStr)
 
@@ -924,7 +948,7 @@ func exchangeInGameCurrency(contract *client.Contract, userID, transactionID, ex
 		panic(fmt.Errorf("failed to submit transaction: %w", err))
 	}
 
-	fmt.Printf("*** Transaction committed successfully\n")
+	log.Printf("*** Transaction committed successfully\n")
 }
 
 // Submit transaction, passing in the wrong number of arguments ,expected to throw an error containing details of any error responses from the smart contract.

@@ -11,9 +11,9 @@ Notably, existing benchmarks like [Fabric](https://ieeexplore.ieee.org/document/
 2. Impact of Layer 1 attributes (block size, consensus algorithms, node count) on single blockchain system performance.
 
 However, there's a lack of benchmarking for different Layer 2 solutions.
-This gap is acknowledged in the recent [BBSF](https://dl.acm.org/doi/10.1145/3595647.3595649) paper, which underscores the necessity for specialized workloads to better understand Layer 2 performance dynamics.
+This gap is acknowledged in the recent [BBSF](https://dl.acm.org/doi/pdf/10.1145/3595647.3595649) paper, which underscores the necessity for specialized workloads to better understand Layer 2 performance dynamics.
 
-This **benchains** project is designed to address this gap. The primary challenge lies in the diverse use cases and varying efficacy of Layer 2 solutions across different blockchains. For example, the [Lightning Network](https://lightning.network/lightning-network-paper.pdf)  is optimized for high-frequency transactions but may not be as efficient for single, large-volume transactions. Consequently, a uniform comparative analysis of all Layer 2 solutions is not feasible.
+This **benchains** project is designed to address this gap. The primary challenge lies in the diverse use cases and varying efficacy of Layer 2 solutions across different blockchains. For example, the [Lightning Network](https://lightning.network/lightning-network-paper.pdf) is optimized for high-frequency transactions in bitcoin, meanwhile scaling solutions like [Plasma](https://ethereum.org/en/developers/docs/scaling/plasma/) and [ZK-rollups](https://ethereum.org/en/developers/docs/scaling/zk-rollups/) are designed to increase throughput my moving computation & state-stroage off Ethereum's mainchain.
 
 ## Methodology
 To address this, I propose a method that is straightforward enough with a simple design:
