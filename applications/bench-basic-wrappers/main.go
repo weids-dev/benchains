@@ -374,7 +374,7 @@ func exchangeInGameCurrency(contract *client.Contract, userID, transactionID, ex
 }
 
 // Submit transaction, passing in the wrong number of arguments ,expected to throw an error containing details of any error responses from the smart contract.
-func errorHandling(contract *client.Contract, err error) {
+func errorHandling(err error) {
 	switch err := err.(type) {
 	case *client.EndorseError:
 		fmt.Printf("Endorse error for transaction %s with gRPC status %v: %s\n", err.TransactionID, status.Code(err), err)

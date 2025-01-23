@@ -45,7 +45,6 @@ func (c *CurrencyContract) CreatePlayer(ctx contractapi.TransactionContextInterf
 	player := types.Player{
 		ID: id,
 		Balance: 0,
-		Items: []types.Item{},
 	}
 
 	// Marshal Player to JSON

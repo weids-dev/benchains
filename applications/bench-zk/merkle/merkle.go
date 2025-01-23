@@ -5,20 +5,24 @@ import (
 	"math/big"
 
 	"bench-zk/utils"
+
 	gcHash "github.com/consensys/gnark-crypto/hash"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 )
-
-// UserState holds a user's name and balance
-type UserState struct {
-	Name    string
-	Balance *big.Int // TODO: Float
-}
 
 // MProof represents the Merkle proof for a specific leaf in the Merkle tree.
 type MProof struct {
 	PathBits []bool      // Indicates the direction (left or right) at each level of the tree
 	Siblings []*big.Int  // Contains the sibling hashes at each level of the tree
+}
+
+// UserState holds a user's name, balance ($BEN).
+// Each UserState will be commit to the transaction root every period of time.
+// When exiting, user can withdraw all BEN stored on zk-rollups contract chain,
+// but he/she cannot move any unused deposits out.
+type UserState struct {
+	Name         string
+	Balance     *big.Int
 }
 
 //--------------------------------------------------------------------------------

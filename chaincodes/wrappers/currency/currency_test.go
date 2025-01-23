@@ -62,17 +62,14 @@ func TestInitLedger(t *testing.T) {
 		{
 			ID:      "player1",
 			Balance: 1000,
-			Items:   []types.Item{},
 		},
 		{
 			ID:      "player2",
 			Balance: 1500,
-			Items:   []types.Item{},
 		},
 		{
 			ID:      "player3",
 			Balance: 500,
-			Items:   []types.Item{},
 		},
 	}
 

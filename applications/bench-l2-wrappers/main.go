@@ -49,6 +49,9 @@ type TransactionData struct {
 	Writes []map[string]interface{}
 }
 
+// UserState
+
+
 // Write represents a simplified write structure
 type Write struct {
 	Key   string
@@ -69,7 +72,7 @@ func buildMerkleTree(transactions []TransactionData) string {
 
 	var leaves [][]byte
 	for _, tx := range transactions {
-		txHash := computeHash([]byte(tx.TxID) // TODO: encode TxID + Writes on Merkle leaf
+		txHash := computeHash([]byte(tx.TxID)) // TODO: encode TxID + Writes on Merkle leaf
 		leaves = append(leaves, txHash)
 	}
 
@@ -218,7 +221,7 @@ func createPlayerHandler(w http.ResponseWriter, r *http.Request, contract *clien
 	log.Printf("PUT request processed for playerId: %s", playerId)
 }
 
-var debug = false // Set this to true to enable logging
+var debug = true // Set this to true to enable logging
 
 func main() {
 	if debug {
@@ -356,6 +359,20 @@ func main() {
 						continue
 					}
 
+					if err != nil {
+						fmt.Println("Error extracting transaction:", err)
+						continue
+					}
+
+					// Output the extracted transactions
+					for _, tx := range transactions {
+						log.Printf("TxID: %s\n", tx.TxID)
+						for _, write := range tx.Writes {
+							log.Printf("Write: %+v\n", write)
+						}
+					}
+
+
 					fmt.Printf("Number of transactions in this block: %d   || ", len(transactions))
 
 					// Compute the Merkle root of the transactions
@@ -379,7 +396,8 @@ func main() {
 	   Test Functions Begin
 	*/
 
-	/*
+	time.Sleep(10 * time.Second) 
+
 	// All those will be written to the ledger
 	go createPlayer(plasma_contract, "AWANG01")
 	go createPlayer(plasma_contract, "AWANG02")
@@ -390,7 +408,7 @@ func main() {
 	go createPlayer(plasma_contract, "AWANG07")
 	go createPlayer(plasma_contract, "AWANG08")
 
-	time.Sleep(5 * time.Second) 
+	time.Sleep(10 * time.Second) 
 
 	go recordBankTransaction(plasma_contract, "AWANG01", "1", "TXXAWANG01")
 	go recordBankTransaction(plasma_contract, "AWANG02", "2", "TXXAWANG02")
@@ -401,49 +419,16 @@ func main() {
 	go recordBankTransaction(plasma_contract, "AWANG07", "3", "TXXAWANG07")
 	go recordBankTransaction(plasma_contract, "AWANG08", "8", "TXXAWANG08")
 
-	time.Sleep(5 * time.Second) 
+	time.Sleep(10 * time.Second) 
 
-	go recordBankTransaction(plasma_contract, "AWANG01", "1", "TXXAWANG01")
-	go recordBankTransaction(plasma_contract, "AWANG02", "2", "TXXAWANG02")
-	go recordBankTransaction(plasma_contract, "AWANG03", "3", "TXXAWANG03")
-	go recordBankTransaction(plasma_contract, "AWANG04", "3", "TXXAWANG04")
-	go recordBankTransaction(plasma_contract, "AWANG05", "3", "TXXAWANG05")
-	go recordBankTransaction(plasma_contract, "AWANG06", "3", "TXXAWANG06")
-	go recordBankTransaction(plasma_contract, "AWANG07", "3", "TXXAWANG07")
-	go recordBankTransaction(plasma_contract, "AWANG08", "8", "TXXAWANG08")
-
-	time.Sleep(5 * time.Second) 
-
-	go recordBankTransaction(plasma_contract, "AWANG01", "1", "TXXAWANG01")
-	go recordBankTransaction(plasma_contract, "AWANG02", "2", "TXXAWANG02")
-	go recordBankTransaction(plasma_contract, "AWANG03", "3", "TXXAWANG03")
-	go recordBankTransaction(plasma_contract, "AWANG04", "3", "TXXAWANG04")
-	go recordBankTransaction(plasma_contract, "AWANG05", "3", "TXXAWANG05")
-	go recordBankTransaction(plasma_contract, "AWANG06", "3", "TXXAWANG06")
-	go recordBankTransaction(plasma_contract, "AWANG07", "3", "TXXAWANG07")
-	go recordBankTransaction(plasma_contract, "AWANG08", "8", "TXXAWANG08")
-
-	time.Sleep(5 * time.Second) 
-
-	go recordBankTransaction(plasma_contract, "AWANG01", "1", "TXXAWANG01")
-	go recordBankTransaction(plasma_contract, "AWANG02", "2", "TXXAWANG02")
-	go recordBankTransaction(plasma_contract, "AWANG03", "3", "TXXAWANG03")
-	go recordBankTransaction(plasma_contract, "AWANG04", "3", "TXXAWANG04")
-	go recordBankTransaction(plasma_contract, "AWANG05", "3", "TXXAWANG05")
-	go recordBankTransaction(plasma_contract, "AWANG06", "3", "TXXAWANG06")
-	go recordBankTransaction(plasma_contract, "AWANG07", "3", "TXXAWANG07")
-	go recordBankTransaction(plasma_contract, "AWANG08", "8", "TXXAWANG08")
-
-	time.Sleep(5 * time.Second) 
-
-	go recordBankTransaction(plasma_contract, "AWANG01", "1", "TXXAWANG01")
-	go recordBankTransaction(plasma_contract, "AWANG02", "2", "TXXAWANG02")
-	go recordBankTransaction(plasma_contract, "AWANG03", "3", "TXXAWANG03")
-	go recordBankTransaction(plasma_contract, "AWANG04", "3", "TXXAWANG04")
-	go recordBankTransaction(plasma_contract, "AWANG05", "3", "TXXAWANG05")
-	go recordBankTransaction(plasma_contract, "AWANG06", "3", "TXXAWANG06")
-	go recordBankTransaction(plasma_contract, "AWANG07", "3", "TXXAWANG07")
-	go recordBankTransaction(plasma_contract, "AWANG08", "8", "TXXAWANG08")
+	go exchangeInGameCurrency(plasma_contract, "AWANG01", "TXXAWANG01", rate)
+	go exchangeInGameCurrency(plasma_contract, "AWANG02", "TXXAWANG02", rate)
+	go exchangeInGameCurrency(plasma_contract, "AWANG03", "TXXAWANG03", rate)
+	go exchangeInGameCurrency(plasma_contract, "AWANG04", "TXXAWANG04", rate)
+	go exchangeInGameCurrency(plasma_contract, "AWANG05", "TXXAWANG05", rate)
+	go exchangeInGameCurrency(plasma_contract, "AWANG06", "TXXAWANG06", rate)
+	go exchangeInGameCurrency(plasma_contract, "AWANG07", "TXXAWANG07", rate)
+	go exchangeInGameCurrency(plasma_contract, "AWANG08", "TXXAWANG08", rate)
 
 	time.Sleep(5 * time.Second) 
 
@@ -481,7 +466,7 @@ func main() {
 			log.Printf("Write: %+v\n", write)
 		}
 	}
-	*/
+
 
 	/*
 	   Test Functions End
@@ -672,6 +657,7 @@ func extractTransactions(decodedBlock string) ([]TransactionData, error) {
 	// Define a struct to hold the decoded block data
 	var blockData map[string]interface{}
 	err := json.Unmarshal([]byte(decodedBlock), &blockData)
+	fmt.Printf("*** Decoded Block: %s\n", decodedBlock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse decoded block data: %w", err)
 	}
@@ -711,6 +697,9 @@ func extractTransactions(decodedBlock string) ([]TransactionData, error) {
 
 		// Extract writes from the transaction payload
 		writes, err := extractWrites(payload)
+
+		_, err = extractTransaction(payload) // test
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract writes: %w", err)
 		}
@@ -723,11 +712,13 @@ func extractTransactions(decodedBlock string) ([]TransactionData, error) {
 
 	return transactions, nil
 }
-
 // Extract writes from the transaction payload
 func extractWrites(payload map[string]interface{}) ([]map[string]interface{}, error) {
 	// Navigate to the 'data' field under 'payload'
 	data, ok := payload["data"].(map[string]interface{})
+	
+	// fmt.Printf("*** Payload: %s\n", payload)
+
 	if !ok {
 		return nil, fmt.Errorf("failed to find data field in payload")
 	}
@@ -807,6 +798,66 @@ func extractWrites(payload map[string]interface{}) ([]map[string]interface{}, er
 	}
 
 	return writes, nil
+}
+
+// Extract transaction from the transaction payload
+func extractTransaction(payload map[string]interface{}) ([]map[string]interface{}, error) {
+	// Navigate to the 'data' field under 'payload'
+	data, ok := payload["data"].(map[string]interface{})
+	
+	// fmt.Printf("*** Payload: %s\n", payload)
+
+	if !ok {
+		return nil, fmt.Errorf("failed to find data field in payload")
+	}
+
+	// Traverse further into the 'actions' field to find the writes
+	actions, ok := data["actions"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("failed to find actions in transaction payload")
+	}
+
+	for _, action := range actions {
+		actionData, ok := action.(map[string]interface{})
+		if !ok {
+			fmt.Println("Error: Input Args 1")
+		}
+
+		// Navigate to 'payload' and then to 'chaincode_proposal_payload'
+		chaincodeActionPayload, ok := actionData["payload"].(map[string]interface{})
+		if !ok {
+			fmt.Println("Error: Input Args 2")
+		}
+
+		chaincodeProposalPayload, ok := chaincodeActionPayload["chaincode_proposal_payload"].(map[string]interface{})
+		if !ok {
+			fmt.Println("Error: Input Args 4")
+		}
+
+		input, ok := chaincodeProposalPayload["input"].(map[string]interface{})
+		if !ok {
+			fmt.Println("Error: Input Args 5")
+		}
+
+		spec, ok := input["chaincode_spec"].(map[string]interface{})
+		if !ok {
+			fmt.Println("Error: Input Args 6")
+		}
+
+		inputArgs, ok := spec["input"].(map[string]interface{})
+		if !ok {
+			fmt.Println("Error: Input Args 7")
+		}
+
+		args, ok := inputArgs["args"].([]interface{})
+		if !ok {
+			fmt.Println("Error: Input Args 8")
+		}
+
+		fmt.Printf("Input Args: %s\n", args)
+	}
+
+	return nil, nil
 }
 
 
