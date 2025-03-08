@@ -6,7 +6,9 @@ import (
 	"time"
 	"strconv"
 	"log"
+	"math/big"
 	"encoding/json"
+
 
 	"bench-zk/gateway"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
@@ -19,14 +21,14 @@ import (
 // but he/she cannot move any unused deposits out.
 type UserState struct {
 	Name    string
-	BEN     string
+	BEN     *big.Int
 }
 
 // Deposit represents an unused deposits which root will also being commited to mainchain.
 type Deposit struct {
 	TxID    string
 	Name    string
-	USD     string
+	USD     *big.Int
 }
 
 // The Operator wiil use UserState root as input to generate proof for exchangeBen
@@ -34,6 +36,7 @@ type Deposit struct {
 type Wrappers struct {
 	UserStates []UserState
 	Deposits   []Deposit
+	Transactions []merkle.TransactionData
 	Gw1         *gateway.Gateway // Gw1 represents the way operator communicate with Layer 1
 	Gw2         *gateway.Gateway // Gw2 represents the way operator communicate with Layer 2
 }
@@ -57,10 +60,13 @@ func NewWrappers(chain1, chain2 gateway.Chain) (*Wrappers, error) {
 
 	// Initialize Wrappers with empty UserStates and Deposits
 	return &Wrappers{
-		UserStates: []UserState{},
-		Deposits:   []Deposit{},
-		Gw1:        gw1,
-		Gw2:        gw2,
+		UserStates:   []UserState{},
+		Deposits:     []Deposit{},
+		Transactions: []merkle.TransactionData{},
+		StateRoots:   []string,  // set of intermediate states between each transactions
+		StateProofs:  []MProof{} // each Merkle proof to show that the state is exactly in the tree root.
+		Gw1:          gw1,
+		Gw2:          gw2,
 	}, nil
 }
 
@@ -110,38 +116,35 @@ func (w *Wrappers) Operate() error {
 					continue
 				}
 
-				transactions, err := extractTransactions(block)
+				w.Transactions, err = extractTransactions(block)
 				if err != nil {
 					fmt.Println("Error extracting transactions:", err)
 					continue
 				}
 
-				if err != nil {
-					fmt.Println("Error extracting transaction:", err)
-					continue
-				}
-
 				// Output the extracted transactions
-				for _, tx := range transactions {
+				for _, tx := range w.Transactions {
 					log.Printf("TxID: %s\n", tx.TxID)
 					for _, arg := range tx.Args {
 						log.Printf("Arg: %+v\n", arg)
 					}
 				}
+				fmt.Printf("Number of transactions in this block: %d   || ", len(w.Transactions))
 
-				fmt.Printf("Number of transactions in this block: %d   || ", len(transactions))
-
-				// TODO: Merke Tree for transactions
-				/*
 				// Compute the Merkle root of the transactions
-				merkleRoot := buildMerkleTree(transactions)
+				transactionRoot := merkle.BuildMerkleTransactions(w.Transactions)
+				merkleRoot := merkle.MerkleRootToBase64(transactionRoot)
 
 				// Commit the Merkle root to the root chain
-				go commitMerkleRoot(root_contract, snum, merkleRoot)
-
+				go commitMerkleRoot(w.Gw1.Contract, snum, merkleRoot)
 				fmt.Printf("Committed Merkle root for block %d: %s\n", blockNumber, merkleRoot)
-				*/
-			}
+
+				// So-far, plasma, the following part, zk-rollup
+				// For each transactions in w.Transactions array, the operator should first iterate over it.
+				// processing each of it, and update it in their corresponding array of merkle proofs
+				// Let's assume the number of users in wrappers chain stays the same, they never exits
+
+
 
 			// Step 4: Update newest committed block number after processing
 			newestCommittedBlockNumber = newestBlockNumber

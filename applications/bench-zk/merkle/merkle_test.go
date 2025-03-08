@@ -47,7 +47,7 @@ func TestMerkleProof(t *testing.T) {
 	// Simulate an updated user state for Bob (after transaction)
 	updatedUser := UserState {
 		Name:    "Bob",
-		Balance: big.NewInt(340),
+		Ben: big.NewInt(340),
 	}
 
 	updatedUserHash := hashUserState(updatedUser)

@@ -15,14 +15,9 @@ import (
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"google.golang.org/grpc/status"
 	ggateway "github.com/hyperledger/fabric-protos-go-apiv2/gateway"
+	"bench-zk/merkle"
 )
 
-
-// TransactionData holds the transaction ID and its corresponding args
-type TransactionData struct {
-	TxID   string
-	Args   []string
-}
 
 // -------------------------------------------------------------
 // Helper functions below
@@ -100,7 +95,7 @@ func getBlockByNumber(contract *client.Contract, channelName string, number stri
 }
 
 // Extract transactions from the decoded block
-func extractTransactions(decodedBlock string) ([]TransactionData, error) {
+func extractTransactions(decodedBlock string) ([]merkle.TransactionData, error) {
 	// Define a struct to hold the decoded block data
 	var blockData map[string]interface{}
 	err := json.Unmarshal([]byte(decodedBlock), &blockData)
@@ -120,7 +115,7 @@ func extractTransactions(decodedBlock string) ([]TransactionData, error) {
 		return nil, fmt.Errorf("failed to find data array in block data")
 	}
 
-	var transactions []TransactionData
+	var transactions []merkle.TransactionData
 	for _, item := range dataArray {
 		envelope, ok := item.(map[string]interface{})
 		if !ok {
@@ -149,7 +144,7 @@ func extractTransactions(decodedBlock string) ([]TransactionData, error) {
 			return nil, fmt.Errorf("failed to extract writes: %w", err)
 		}
 
-		transactions = append(transactions, TransactionData{
+		transactions = append(transactions, merkle.TransactionData{
 			TxID:   transactionID,
 			Args:   transaction,
 		})

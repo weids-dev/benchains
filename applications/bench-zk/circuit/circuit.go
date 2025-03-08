@@ -21,8 +21,6 @@ import (
 	gcHash "github.com/consensys/gnark-crypto/hash"
 )
 
-
-
 // DepositCircuit enforces that:
 //
 //   1) BobNewBalance = BobOldBalance + DepositAmount

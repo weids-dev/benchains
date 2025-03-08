@@ -44,6 +44,7 @@ function install() {
     install_chaincode org08 6008
 }
 
+
 function approve() {
     echo $PACKAGE
     approve_chaincode org01 6001 $PACKAGE 7001
