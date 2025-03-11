@@ -1,3 +1,5 @@
+// merkle/merkle.go
+
 package merkle
 
 import (
@@ -41,33 +43,37 @@ type TransactionData struct {
 // user can prove that the possess the same state by re-computing their claimed states
 // and producing the same hash that in the state Merkle tree (Merkle proof).
 //--------------------------------------------------------------------------------
+
 func HashUserState(user UserState) *big.Int {
-	// 1) Prepare a new MiMC hasher
 	hasher := gcHash.MIMC_BN254.New()
 
-	// 2) Convert user name (string) to bytes
-	nameBytes := []byte(user.Name)
-	// Write them into the hasher
-	_, _ = hasher.Write(nameBytes)
+	NameLength := 10
+    // Pad name to NameLength (10) bytes
+    nameBytes := []byte(user.Name)
+    if len(nameBytes) > NameLength {
+        nameBytes = nameBytes[:NameLength]
+    } else {
+        for len(nameBytes) < NameLength {
+            nameBytes = append(nameBytes, 0)
+        }
+    }
+    _, _ = hasher.Write(nameBytes)
 
-	// 3) Convert user balance to fr.Element, then to bytes
-	var balanceFr fr.Element
-	balanceFr.SetBigInt(user.Ben)
-	balanceBytes := balanceFr.Bytes()
-	_, _ = hasher.Write(balanceBytes[:])
+    // Convert balance to fr.Element bytes
+    var balanceFr fr.Element
+    balanceFr.SetBigInt(user.Ben)
+    balanceBytes := balanceFr.Bytes()
+    _, _ = hasher.Write(balanceBytes[:])
 
-	// 4) Compute the digest
-	digest := hasher.Sum(nil)
-
-	// 5) Convert the resulting digest back into a big.Int
-	var outFr fr.Element
-	outFr.SetBytes(digest);
-	res := new(big.Int)
-	outFr.BigInt(res)
-	return res
+    digest := hasher.Sum(nil)
+    var outFr fr.Element
+    outFr.SetBytes(digest)
+    res := new(big.Int)
+    outFr.BigInt(res)
+    return res
 }
 
-// HashTransactionData hashes a single transaction (TxID + all Args)
+// hashTransactionData hashes a single transaction (TxID + all Args)
 // into a field element using MiMC_BN254.
 //
 // The order is:
@@ -149,13 +155,13 @@ func BuildMerkleTransactions(txs []TransactionData) *big.Int {
 
 
 //--------------------------------------------------------------------------------
-// Helper function: buildMerkleStates
+// Helper function: BuildMerkleStates
 //
 // Builds a (very naive) Merkle tree from a slice of UserState.
-// Each leaf = hashUserState(user.Name, user.Balance).
+// Each leaf = HashUserState(user.Name, user.Balance).
 // Then pairwise hash to get parent, etc. Returns the Merkle root as *big.Int.
 //--------------------------------------------------------------------------------
-func buildMerkleStates(users []UserState) *big.Int {
+func BuildMerkleStates(users []UserState) *big.Int {
 	// 1) Hash each user into a leaf
 	var leaves []*big.Int
 	for _, u := range users {
@@ -189,8 +195,8 @@ func buildMerkleStates(users []UserState) *big.Int {
 	return leaves[0]
 }
 
-// generateMerkleProof generates a Merkle proof for the given leaf in the tree.
-func generateMerkleProof(users []UserState, leaf *big.Int) (*MProof, error) {
+// GenerateMerkleProof generates a Merkle proof for the given leaf in the tree.
+func GenerateMerkleProof(users []UserState, leaf *big.Int) (*MProof, error) {
 	// 1) Hash each user into a leaf
 	var leaves []*big.Int
 	for _, u := range users {
@@ -242,8 +248,8 @@ func generateMerkleProof(users []UserState, leaf *big.Int) (*MProof, error) {
 	return proof, nil
 }
 
-// verifyMerkleProof verifies that the provided proof is valid for the given root and leaf.
-func verifyMerkleProof(root *big.Int, leaf *big.Int, proof *MProof) bool {
+// VerifyMerkleProof verifies that the provided proof is valid for the given root and leaf.
+func VerifyMerkleProof(root *big.Int, leaf *big.Int, proof *MProof) bool {
 	// Start with the leaf hash
 	currentHash := leaf
 
@@ -260,4 +266,26 @@ func verifyMerkleProof(root *big.Int, leaf *big.Int, proof *MProof) bool {
 
 	// Check if the final hash matches the root
 	return currentHash.Cmp(root) == 0
+}
+
+
+// UpdateMerkleRoot computes the new Merkle root and proof for an updated user state,
+// given the previous proof for that user's state for the previous root.
+func UpdateMerkleRoot(prevProof *MProof, newUserState UserState) (*big.Int) {
+	// Compute the new leaf hash from the updated user state
+	newLeafHash := HashUserState(newUserState)
+	currentHash := new(big.Int).Set(newLeafHash)
+
+    // Recompute the root by hashing up the path using the previous proof's siblings
+    for i, sibling := range prevProof.Siblings {
+        if prevProof.PathBits[i] {
+            // Leaf was on the left: hash(currentHash, sibling)
+            currentHash = utils.ComputeMiMC(currentHash, sibling)
+        } else {
+            // Leaf was on the right: hash(sibling, currentHash)
+            currentHash = utils.ComputeMiMC(sibling, currentHash)
+        }
+    }
+
+    return currentHash
 }
