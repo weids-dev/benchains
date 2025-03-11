@@ -5,7 +5,6 @@ go 1.23.5
 require (
 	github.com/consensys/gnark v0.11.0
 	github.com/consensys/gnark-crypto v0.14.0
-	github.com/google/uuid v1.6.0
 	github.com/hyperledger/fabric-gateway v1.7.1
 	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.5
 	google.golang.org/grpc v1.69.4

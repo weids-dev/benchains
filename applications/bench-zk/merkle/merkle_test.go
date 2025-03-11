@@ -7,11 +7,9 @@ import (
 	"testing"
 )
 
-
-
 func TestMerkleProof(t *testing.T) {
 	// Sample user states for testing
-	users := [] UserState{
+	users := []UserState{
 		{"Alice", big.NewInt(100)},
 		{"Bob", big.NewInt(340)},
 		{"Charlie", big.NewInt(500)},
@@ -45,9 +43,9 @@ func TestMerkleProof(t *testing.T) {
 	}
 
 	// Simulate an updated user state for Bob (after transaction)
-	updatedUser := UserState {
-		Name:    "Bob",
-		Ben: big.NewInt(340),
+	updatedUser := UserState{
+		Name: "Bob",
+		Ben:  big.NewInt(340),
 	}
 
 	updatedUserHash := hashUserState(updatedUser)

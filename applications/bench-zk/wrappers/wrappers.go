@@ -2,17 +2,17 @@
 package wrappers
 
 import (
+	"encoding/json"
 	"fmt"
-	"time"
-	"strconv"
 	"log"
 	"math/big"
-	"encoding/json"
-
+	"strconv"
+	"time"
 
 	"bench-zk/gateway"
-	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"bench-zk/merkle"
+
+	"github.com/hyperledger/fabric-gateway/pkg/client"
 )
 
 // UserState holds a user's name, balance ($BEN).
@@ -20,25 +20,32 @@ import (
 // When exiting, user can withdraw all BEN stored on zk-rollups contract chain,
 // but he/she cannot move any unused deposits out.
 type UserState struct {
-	Name    string
-	BEN     *big.Int
+	Name string
+	BEN  *big.Int
 }
 
 // Deposit represents an unused deposits which root will also being commited to mainchain.
 type Deposit struct {
-	TxID    string
-	Name    string
-	USD     *big.Int
+	TxID string
+	Name string
+	USD  *big.Int
 }
 
 // The Operator wiil use UserState root as input to generate proof for exchangeBen
 // The Operator will use Deposit root as input to generate proof for depositTransaction
 type Wrappers struct {
-	UserStates []UserState
-	Deposits   []Deposit
+	UserStates   []UserState
+	Deposits     []Deposit
 	Transactions []merkle.TransactionData
-	Gw1         *gateway.Gateway // Gw1 represents the way operator communicate with Layer 1
-	Gw2         *gateway.Gateway // Gw2 represents the way operator communicate with Layer 2
+	StateRoots   []string         // set of intermediate states between each transactions
+	StateProofs  []MProof         // each Merkle proof to show that the state is exactly in the tree root
+	Gw1          *gateway.Gateway // Gw1 represents the way operator communicate with Layer 1
+	Gw2          *gateway.Gateway // Gw2 represents the way operator communicate with Layer 2
+}
+
+// MProof represents a Merkle proof
+type MProof struct {
+	// Add necessary fields for your Merkle proof
 }
 
 // NewWrappers initializes a new Wrappers instance.
@@ -63,8 +70,8 @@ func NewWrappers(chain1, chain2 gateway.Chain) (*Wrappers, error) {
 		UserStates:   []UserState{},
 		Deposits:     []Deposit{},
 		Transactions: []merkle.TransactionData{},
-		StateRoots:   []string,  // set of intermediate states between each transactions
-		StateProofs:  []MProof{} // each Merkle proof to show that the state is exactly in the tree root.
+		StateRoots:   []string{}, // set of intermediate states between each transactions
+		StateProofs:  []MProof{}, // each Merkle proof to show that the state is exactly in the tree root.
 		Gw1:          gw1,
 		Gw2:          gw2,
 	}, nil
@@ -140,20 +147,13 @@ func (w *Wrappers) Operate() error {
 				fmt.Printf("Committed Merkle root for block %d: %s\n", blockNumber, merkleRoot)
 
 				// So-far, plasma, the following part, zk-rollup
-				// For each transactions in w.Transactions array, the operator should first iterate over it.
-				// processing each of it, and update it in their corresponding array of merkle proofs
-				// Let's assume the number of users in wrappers chain stays the same, they never exits
-
-
-
-			// Step 4: Update newest committed block number after processing
-			newestCommittedBlockNumber = newestBlockNumber
-			// queryAllMerkleRoots(root_contract)
+				// Step 4: Update newest committed block number after processing
+				newestCommittedBlockNumber = newestBlockNumber
+			}
 		}
 	}
 	return nil
 }
-
 
 // -------------------------------------------------------------
 // Helper functions below
@@ -175,7 +175,7 @@ func getPlayersNum(contract *client.Contract) {
 		panic(fmt.Errorf("failed to unmarshal JSON: %w", err))
 	}
 
-	// Now you can accurately get the number of players 
+	// Now you can accurately get the number of players
 	log.Printf("*** Number of Records: %d\n", len(players))
 }
 
@@ -255,5 +255,3 @@ func commitMerkleRoot(contract *client.Contract, blockNumber, merkleRoot string)
 
 	log.Printf("*** Transaction committed successfully\n")
 }
-
-

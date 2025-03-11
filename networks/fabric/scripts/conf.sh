@@ -45,8 +45,12 @@ function create_channel() {
         export ORDERER_ADMIN_TLS_SIGN_CERT="${PWD}/../certs/chains/ordererOrganizations/${ORDERER}.chains/orderers/orderer1.${ORDERER}.chains/tls/server.crt"
         export ORDERER_ADMIN_TLS_PRIVATE_KEY="${PWD}/../certs/chains/ordererOrganizations/${ORDERER}.chains/orderers/orderer1.${ORDERER}.chains/tls/server.key"
 
+        # Wait for the orderer to be ready (Issue in WSL2)
+        echo "Waiting for orderer to start on port ${PORT}..."
+        sleep 5
+
         # Create the channel and join the orderer to the channel.
-       osnadmin channel join --channelID ${CHANNEL_NAME} --config-block ${PWD}/../channel-artifacts/${CHANNEL_NAME}.block -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
+        osnadmin channel join --channelID ${CHANNEL_NAME} --config-block ${PWD}/../channel-artifacts/${CHANNEL_NAME}.block -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
         osnadmin channel list --channelID ${CHANNEL_NAME} -o localhost:${PORT} --ca-file "$ORDERER_CA" --client-cert "$ORDERER_ADMIN_TLS_SIGN_CERT" --client-key "$ORDERER_ADMIN_TLS_PRIVATE_KEY"
     done
 }

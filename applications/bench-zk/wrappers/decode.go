@@ -4,20 +4,20 @@ package wrappers
 
 import (
 	"bytes"
-	"os/exec"
 	"context"
-	"fmt"
-	"encoding/json"
 	"encoding/base64"
-	"log"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
+	"os/exec"
+
+	"bench-zk/merkle"
 
 	"github.com/hyperledger/fabric-gateway/pkg/client"
-	"google.golang.org/grpc/status"
 	ggateway "github.com/hyperledger/fabric-protos-go-apiv2/gateway"
-	"bench-zk/merkle"
+	"google.golang.org/grpc/status"
 )
-
 
 // -------------------------------------------------------------
 // Helper functions below
@@ -82,7 +82,6 @@ func extractNewestBlockNumber(decodedChainInfo string) (uint64, error) {
 	return newestBlockNumber, nil
 }
 
-
 func getBlockByNumber(contract *client.Contract, channelName string, number string) []byte {
 	log.Println("\n--> Evaluate Transaction: getBlock from system chaincode qscc GetBlockByNumber")
 
@@ -145,8 +144,8 @@ func extractTransactions(decodedBlock string) ([]merkle.TransactionData, error) 
 		}
 
 		transactions = append(transactions, merkle.TransactionData{
-			TxID:   transactionID,
-			Args:   transaction,
+			TxID: transactionID,
+			Args: transaction,
 		})
 	}
 	return transactions, nil
@@ -156,7 +155,7 @@ func extractTransactions(decodedBlock string) ([]merkle.TransactionData, error) 
 func extractTransaction(payload map[string]interface{}) ([]string, error) {
 	// Navigate to the 'data' field under 'payload'
 	data, ok := payload["data"].(map[string]interface{})
-	
+
 	// fmt.Printf("*** Payload: %s\n", payload)
 
 	if !ok {
@@ -223,7 +222,6 @@ func extractTransaction(payload map[string]interface{}) ([]string, error) {
 	return args, nil
 }
 
-
 // Format JSON data
 func formatJSON(data []byte) string {
 	var prettyJSON bytes.Buffer
@@ -268,4 +266,3 @@ func errorHandling(contract *client.Contract, err error) {
 		}
 	}
 }
-

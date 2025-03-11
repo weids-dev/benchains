@@ -12,10 +12,7 @@ require (
 
 require (
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/hyperledger/fabric v2.1.1+incompatible // indirect
-	github.com/hyperledger/fabric-protos-go v0.3.3 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect

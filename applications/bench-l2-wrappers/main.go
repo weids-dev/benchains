@@ -3,19 +3,19 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/x509"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
-	"path"
-	"time"
+	"io"
 	"log"
 	"os"
-	"io"
 	"os/exec"
+	"path"
+	"strconv"
+	"time"
 
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
@@ -28,20 +28,17 @@ import (
 	"strings"
 )
 
-
-
 type PeerConfig struct {
-	MSPID        string
-	CryptoPath   string
-	CertPath     string
-	KeyPath      string
-	TLSCertPath  string
-	PeerEndpoint string
-	GatewayPeer  string
-	ChannelName  string
+	MSPID         string
+	CryptoPath    string
+	CertPath      string
+	KeyPath       string
+	TLSCertPath   string
+	PeerEndpoint  string
+	GatewayPeer   string
+	ChannelName   string
 	ChaincodeName string
 }
-
 
 // TransactionData holds the transaction ID and its corresponding writes
 type TransactionData struct {
@@ -50,7 +47,6 @@ type TransactionData struct {
 }
 
 // UserState
-
 
 // Write represents a simplified write structure
 type Write struct {
@@ -230,29 +226,29 @@ func main() {
 		log.SetOutput(io.Discard)
 	}
 
-	plasmaChainConfig := PeerConfig {
+	plasmaChainConfig := PeerConfig{
 		MSPID:         "org02MSP",
-			CryptoPath:    "../../networks/fabric/certs/chains/peerOrganizations/org02.chains",
-			CertPath:      "../../networks/fabric/certs/chains/peerOrganizations/org02.chains/users/User1@org02.chains/msp/signcerts/User1@org02.chains-cert.pem",
-			KeyPath:       "../../networks/fabric/certs/chains/peerOrganizations/org02.chains/users/User1@org02.chains/msp/keystore/",
-			TLSCertPath:   "../../networks/fabric/certs/chains/peerOrganizations/org02.chains/peers/peer1.org02.chains/tls/ca.crt",
-			PeerEndpoint:  "localhost:6002",
-			GatewayPeer:   "peer1.org02.chains",
-			ChannelName:   "chains02",
-			ChaincodeName: "pasic",
-		}
+		CryptoPath:    "../../networks/fabric/certs/chains/peerOrganizations/org02.chains",
+		CertPath:      "../../networks/fabric/certs/chains/peerOrganizations/org02.chains/users/User1@org02.chains/msp/signcerts/User1@org02.chains-cert.pem",
+		KeyPath:       "../../networks/fabric/certs/chains/peerOrganizations/org02.chains/users/User1@org02.chains/msp/keystore/",
+		TLSCertPath:   "../../networks/fabric/certs/chains/peerOrganizations/org02.chains/peers/peer1.org02.chains/tls/ca.crt",
+		PeerEndpoint:  "localhost:6002",
+		GatewayPeer:   "peer1.org02.chains",
+		ChannelName:   "chains02",
+		ChaincodeName: "pasic",
+	}
 
-	rootChainConfig := PeerConfig {
+	rootChainConfig := PeerConfig{
 		MSPID:         "org01MSP",
-			CryptoPath:    "../../networks/fabric/certs/chains/peerOrganizations/org01.chains",
-			CertPath:      "../../networks/fabric/certs/chains/peerOrganizations/org01.chains/users/User1@org01.chains/msp/signcerts/User1@org01.chains-cert.pem",
-			KeyPath:       "../../networks/fabric/certs/chains/peerOrganizations/org01.chains/users/User1@org01.chains/msp/keystore/",
-			TLSCertPath:   "../../networks/fabric/certs/chains/peerOrganizations/org01.chains/peers/peer1.org01.chains/tls/ca.crt",
-			PeerEndpoint:  "localhost:6001",
-			GatewayPeer:   "peer1.org01.chains",
-			ChannelName:   "chains",
-			ChaincodeName: "basic",
-		}
+		CryptoPath:    "../../networks/fabric/certs/chains/peerOrganizations/org01.chains",
+		CertPath:      "../../networks/fabric/certs/chains/peerOrganizations/org01.chains/users/User1@org01.chains/msp/signcerts/User1@org01.chains-cert.pem",
+		KeyPath:       "../../networks/fabric/certs/chains/peerOrganizations/org01.chains/users/User1@org01.chains/msp/keystore/",
+		TLSCertPath:   "../../networks/fabric/certs/chains/peerOrganizations/org01.chains/peers/peer1.org01.chains/tls/ca.crt",
+		PeerEndpoint:  "localhost:6001",
+		GatewayPeer:   "peer1.org01.chains",
+		ChannelName:   "chains",
+		ChaincodeName: "basic",
+	}
 
 	// Establish connection with plasma chain
 	// The gRPC client connection should be shared by all Gateway connections to this endpoint
@@ -314,7 +310,6 @@ func main() {
 	initLedger2(root_contract)
 	getAllPlayers(root_contract)
 
-
 	/*
 	   Check and Commit Periodically
 	*/
@@ -336,7 +331,6 @@ func main() {
 
 			fmt.Printf("Newest block number: ", newestBlockNumber)
 			fmt.Printf(" || Newest committed block number: %s \n", newestCommittedBlockNumber)
-
 
 			// Step 2: Check if there are new blocks to process
 			if newestBlockNumber > newestCommittedBlockNumber {
@@ -372,7 +366,6 @@ func main() {
 						}
 					}
 
-
 					fmt.Printf("Number of transactions in this block: %d   || ", len(transactions))
 
 					// Compute the Merkle root of the transactions
@@ -391,12 +384,11 @@ func main() {
 		}
 	}()
 
-
 	/*
 	   Test Functions Begin
 	*/
 
-	time.Sleep(10 * time.Second) 
+	time.Sleep(10 * time.Second)
 
 	// All those will be written to the ledger
 	go createPlayer(plasma_contract, "AWANG01")
@@ -408,7 +400,7 @@ func main() {
 	go createPlayer(plasma_contract, "AWANG07")
 	go createPlayer(plasma_contract, "AWANG08")
 
-	time.Sleep(10 * time.Second) 
+	time.Sleep(10 * time.Second)
 
 	go recordBankTransaction(plasma_contract, "AWANG01", "1", "TXXAWANG01")
 	go recordBankTransaction(plasma_contract, "AWANG02", "2", "TXXAWANG02")
@@ -419,7 +411,7 @@ func main() {
 	go recordBankTransaction(plasma_contract, "AWANG07", "3", "TXXAWANG07")
 	go recordBankTransaction(plasma_contract, "AWANG08", "8", "TXXAWANG08")
 
-	time.Sleep(10 * time.Second) 
+	time.Sleep(10 * time.Second)
 
 	go exchangeInGameCurrency(plasma_contract, "AWANG01", "TXXAWANG01", rate)
 	go exchangeInGameCurrency(plasma_contract, "AWANG02", "TXXAWANG02", rate)
@@ -430,8 +422,7 @@ func main() {
 	go exchangeInGameCurrency(plasma_contract, "AWANG07", "TXXAWANG07", rate)
 	go exchangeInGameCurrency(plasma_contract, "AWANG08", "TXXAWANG08", rate)
 
-	time.Sleep(5 * time.Second) 
-
+	time.Sleep(5 * time.Second)
 
 	newestBlockNumber, err := getNewestBlockNumber(syscontract, "chains02")
 	if err != nil {
@@ -444,12 +435,12 @@ func main() {
 
 	blockBytes := getBlockByNumber(syscontract, "chains02", snum)
 	block, err := decodeBlock(blockBytes)
-        if err != nil {
-                panic(fmt.Errorf("failed to decode block: %w", err))
-        }
+	if err != nil {
+		panic(fmt.Errorf("failed to decode block: %w", err))
+	}
 
 	// fmt.Printf("%s\n", block)
-	
+
 	transactions, err := extractTransactions(block)
 
 	if err != nil {
@@ -466,7 +457,6 @@ func main() {
 			log.Printf("Write: %+v\n", write)
 		}
 	}
-
 
 	/*
 	   Test Functions End
@@ -712,11 +702,12 @@ func extractTransactions(decodedBlock string) ([]TransactionData, error) {
 
 	return transactions, nil
 }
+
 // Extract writes from the transaction payload
 func extractWrites(payload map[string]interface{}) ([]map[string]interface{}, error) {
 	// Navigate to the 'data' field under 'payload'
 	data, ok := payload["data"].(map[string]interface{})
-	
+
 	// fmt.Printf("*** Payload: %s\n", payload)
 
 	if !ok {
@@ -804,7 +795,7 @@ func extractWrites(payload map[string]interface{}) ([]map[string]interface{}, er
 func extractTransaction(payload map[string]interface{}) ([]map[string]interface{}, error) {
 	// Navigate to the 'data' field under 'payload'
 	data, ok := payload["data"].(map[string]interface{})
-	
+
 	// fmt.Printf("*** Payload: %s\n", payload)
 
 	if !ok {
@@ -859,7 +850,6 @@ func extractTransaction(payload map[string]interface{}) ([]map[string]interface{
 
 	return nil, nil
 }
-
 
 func getNewestBlockNumber(contract *client.Contract, channelName string) (uint64, error) {
 	log.Println("\n--> Evaluate Transaction: getChainInfo from system chaincode qscc GetChainInfo")
@@ -929,7 +919,6 @@ func extractNewestBlockNumber(decodedChainInfo string) (uint64, error) {
 	return newestBlockNumber, nil
 }
 
-
 func getBlockByNumber(contract *client.Contract, channelName string, number string) []byte {
 	log.Println("\n--> Evaluate Transaction: getBlock from system chaincode qscc GetBlockByNumber")
 
@@ -957,7 +946,7 @@ func getPlayersNum(contract *client.Contract) {
 		panic(fmt.Errorf("failed to unmarshal JSON: %w", err))
 	}
 
-	// Now you can accurately get the number of players 
+	// Now you can accurately get the number of players
 	log.Printf("*** Number of Records: %d\n", len(players))
 }
 
