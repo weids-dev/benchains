@@ -17,9 +17,10 @@ import (
 	//  GNARK-CRYPTO libraries
 	// ---------------------------
 	"github.com/consensys/gnark-crypto/ecc"
+    // "github.com/consensys/gnark-crypto/ecc/bn254/fr"
+
 	"bench-zk/utils"
-	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
-    "bench-zk/merkle"
+	"bench-zk/merkle"
 )
 
 // TestDepositCircuit tests the entire flow of circuit compilation, proving, and verification
@@ -104,162 +105,209 @@ func TestDepositCircuit(t *testing.T) {
 	t.Log("Test passed successfully!")
 }
 
-func TestMerkleUpdateCircuit(t *testing.T) {
-    // Define users (same as in merkle_test.go)
-    users := []merkle.UserState{
-        {"Alice", big.NewInt(100)},
-        {"Bob", big.NewInt(340)},
-        {"Charlie", big.NewInt(500)},
-        {"David", big.NewInt(750)},
-        {"Eva", big.NewInt(200)},
-        {"Frank", big.NewInt(900)},
-        {"Grace", big.NewInt(50)},
-        {"Hannah", big.NewInt(1200)},
-        {"Isaac", big.NewInt(180)},
-        {"Jack", big.NewInt(350)},
-        {"Kathy", big.NewInt(450)},
-        {"Leo", big.NewInt(600)},
-        {"Mona", big.NewInt(800)},
-        {"Nina", big.NewInt(150)},
-        {"Oscar", big.NewInt(1100)},
-        {"Paul", big.NewInt(950)},
-        {"Quinn", big.NewInt(300)},
-        {"Rita", big.NewInt(400)},
-        {"Steve", big.NewInt(550)},
-        {"Tina", big.NewInt(50)},
-        {"Victor", big.NewInt(720)},
-        {"Wendy", big.NewInt(670)},
-        {"Xander", big.NewInt(90)},
-        {"Yara", big.NewInt(1000)},
-    }
 
-    // Build initial Merkle tree
-    initialRoot := merkle.BuildMerkleStates(users)
-    if initialRoot == nil {
-        t.Fatal("Failed to build initial Merkle tree")
-    }
+// TestUserStateCircuit tests the UserStateCircuit with a two-user, one-level Merkle tree.
+func TestUserStateCircuit(t *testing.T) {
+	// Step 1: Define two initial users
+	userA := merkle.UserState{Name: big.NewInt(1), Ben: big.NewInt(100)} // User A: Name=1, Balance=100
+	userB := merkle.UserState{Name: big.NewInt(2), Ben: big.NewInt(200)} // User B: Name=2, Balance=200
+	users := []merkle.UserState{userA, userB}
 
-    // Select Bob (index 1)
-    bobIndex := 1
-    bobOldState := users[bobIndex]
-    bobOldLeafHash := merkle.HashUserState(bobOldState)
+	// Step 2: Compute their state hashes
+	H_A := merkle.HashUserState(userA)
+	H_B := merkle.HashUserState(userB)
 
-    // Generate Merkle proof for Bob's old state
-    proof, err := merkle.GenerateMerkleProof(users, bobOldLeafHash)
-    if err != nil {
-        t.Fatalf("Error generating Merkle proof: %v", err)
-    }
+	// Step 3: Compute the old Merkle root
+	oldRoot := utils.ComputeMiMC(H_A, H_B)
 
-    // Define deposit amount
-    depositAmount := big.NewInt(20)
+	// Step 4: Update user A’s state (e.g., increase balance by 50)
+	userAUpdated := merkle.UserState{Name: big.NewInt(1), Ben: big.NewInt(150)}
 
-    // Compute new balance and state
-    bobNewBalance := new(big.Int).Add(bobOldState.Ben, depositAmount)
-    bobNewState := merkle.UserState{Name: bobOldState.Name, Ben: bobNewBalance}
+	// Step 5: Generate Merkle proof for user A and compute new root
+	proofA, err := merkle.GenerateMerkleProof(users, H_A)
+	if err != nil {
+		t.Fatalf("Failed to generate Merkle proof for user A: %v", err)
+	}
+	newRootA := merkle.UpdateMerkleRoot(proofA, userAUpdated)
 
-    // Compute new root off-chain
-    newRoot := merkle.UpdateMerkleRoot(proof, bobNewState)
+	// Step 6: Set up the circuit assignment (updating left leaf, user A)
+	assignmentA := UserStateCircuit{
+		OldRoot:     oldRoot,
+		NewRoot:     newRootA,
+		OldName:     userA.Name,
+		OldBalance:  userA.Ben,
+		NewName:     userAUpdated.Name,
+		NewBalance:  userAUpdated.Ben,
+		SiblingHash: H_B,
+		PathBit:     1, // Left leaf
+	}
 
-    // Prepare circuit inputs
-    nameBytes := padNameToBytes(bobOldState.Name)
+	// Step 7: Compile the circuit
+	var circuit UserStateCircuit
+	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		t.Fatalf("Failed to compile circuit: %v", err)
+	}
 
-    var oldBalanceFr fr.Element
-    oldBalanceFr.SetBigInt(bobOldState.Ben)
-    oldBalanceBytes := oldBalanceFr.Bytes()
+	// Step 8: Setup proving and verifying keys
+	pk, vk, err := groth16.Setup(ccs)
+	if err != nil {
+		t.Fatalf("Failed to setup proving/verifying keys: %v", err)
+	}
 
-    var newBalanceFr fr.Element
-    newBalanceFr.SetBigInt(bobNewBalance)
-    newBalanceBytes := newBalanceFr.Bytes()
+	// Step 9: Create full witness and generate proof for user A
+	fullWitnessA, err := frontend.NewWitness(&assignmentA, ecc.BN254.ScalarField())
+	if err != nil {
+		t.Fatalf("Failed to create full witness for user A: %v", err)
+	}
+	proofAzk, err := groth16.Prove(ccs, pk, fullWitnessA)
+	if err != nil {
+		t.Fatalf("Failed to generate proof for user A: %v", err)
+	}
 
-    var pathBits [TreeDepth]frontend.Variable
-    var siblings [TreeDepth]frontend.Variable
-    if len(proof.PathBits) != TreeDepth || len(proof.Siblings) != TreeDepth {
-        t.Fatalf("Proof length %d does not match TreeDepth %d", len(proof.PathBits), TreeDepth)
-    }
-    for i := 0; i < TreeDepth; i++ {
-        pathBits[i] = 0
-        if proof.PathBits[i] {
-            pathBits[i] = 1
-        }
-        siblings[i] = proof.Siblings[i]
-    }
+	// Step 10: Create public witness and verify proof for user A
+	publicWitnessA, err := frontend.NewWitness(&assignmentA, ecc.BN254.ScalarField(), frontend.PublicOnly())
+	if err != nil {
+		t.Fatalf("Failed to create public witness for user A: %v", err)
+	}
+	err = groth16.Verify(proofAzk, vk, publicWitnessA)
+	if err != nil {
+		t.Fatalf("Failed to verify proof for user A: %v", err)
+	}
 
-    // Create assignment
-    var oldBalanceBytesArray [32]frontend.Variable
-    var newBalanceBytesArray [32]frontend.Variable
-    for i := 0; i < 32; i++ {
-        oldBalanceBytesArray[i] = big.NewInt(int64(oldBalanceBytes[i]))
-        newBalanceBytesArray[i] = big.NewInt(int64(newBalanceBytes[i]))
-    }
+	// Step 11: Test updating user B (right leaf)
+	userBUpdated := merkle.UserState{Name: big.NewInt(2), Ben: big.NewInt(250)}
+	proofB, err := merkle.GenerateMerkleProof(users, H_B)
+	if err != nil {
+		t.Fatalf("Failed to generate Merkle proof for user B: %v", err)
+	}
+	newRootB := merkle.UpdateMerkleRoot(proofB, userBUpdated)
 
-    assignment := MerkleUpdateCircuit{
-        OldRoot:       initialRoot,
-        NewRoot:       newRoot,
-        DepositAmount: depositAmount,
-        OldUserState: UserStateCircuit{
-            NameBytes:    nameBytes,
-            Balance:      bobOldState.Ben,
-            BalanceBytes: oldBalanceBytesArray,
-        },
-        NewUserState: UserStateCircuit{
-            NameBytes:    nameBytes,
-            Balance:      bobNewBalance,
-            BalanceBytes: newBalanceBytesArray,
-        },
-        PathBits: pathBits,
-        Siblings: siblings,
-    }
+	assignmentB := UserStateCircuit{
+		OldRoot:     oldRoot,
+		NewRoot:     newRootB,
+		OldName:     userB.Name,
+		OldBalance:  userB.Ben,
+		NewName:     userBUpdated.Name,
+		NewBalance:  userBUpdated.Ben,
+		SiblingHash: H_A,
+		PathBit:     0, // Right leaf
+	}
 
-    // Compile circuit
-    var circuit MerkleUpdateCircuit
-    ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
-    if err != nil {
-        t.Fatalf("Failed to compile circuit: %v", err)
-    }
+	// Step 12: Create full witness and generate proof for user B
+	fullWitnessB, err := frontend.NewWitness(&assignmentB, ecc.BN254.ScalarField())
+	if err != nil {
+		t.Fatalf("Failed to create full witness for user B: %v", err)
+	}
+	proofBzk, err := groth16.Prove(ccs, pk, fullWitnessB)
+	if err != nil {
+		t.Fatalf("Failed to generate proof for user B: %v", err)
+	}
 
-    // Setup proving and verifying keys
-    pk, vk, err := groth16.Setup(ccs)
-    if err != nil {
-        t.Fatalf("Failed to setup keys: %v", err)
-    }
+	// Step 13: Create public witness and verify proof for user B
+	publicWitnessB, err := frontend.NewWitness(&assignmentB, ecc.BN254.ScalarField(), frontend.PublicOnly())
+	if err != nil {
+		t.Fatalf("Failed to create public witness for user B: %v", err)
+	}
+	err = groth16.Verify(proofBzk, vk, publicWitnessB)
+	if err != nil {
+		t.Fatalf("Failed to verify proof for user B: %v", err)
+	}
 
-    // Generate full witness
-    fullWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
-    if err != nil {
-        t.Fatalf("Failed to create full witness: %v", err)
-    }
-
-    // Generate proof
-    proofGroth16, err := groth16.Prove(ccs, pk, fullWitness)
-    if err != nil {
-        t.Fatalf("Failed to generate proof: %v", err)
-    }
-
-    // Generate public witness
-    publicWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
-    if err != nil {
-        t.Fatalf("Failed to create public witness: %v", err)
-    }
-
-    // Verify proof
-    err = groth16.Verify(proofGroth16, vk, publicWitness)
-    if err != nil {
-        t.Fatalf("Failed to verify proof: %v", err)
-    }
-
-    t.Log("MerkleUpdateCircuit test passed successfully!")
+	t.Log("Test passed successfully for both user A and user B updates!")
 }
 
-// padNameToBytes converts a name to a fixed-length byte array
-func padNameToBytes(name string) [NameLength]frontend.Variable {
-    bytes := []byte(name)
-    var padded [NameLength]frontend.Variable
-    for i := 0; i < NameLength; i++ {
-        if i < len(bytes) {
-            padded[i] = big.NewInt(int64(bytes[i]))
-        } else {
-            padded[i] = big.NewInt(0)
-        }
-    }
-    return padded
+// TestMerkleCircuit tests the MerkleCircuit with a 16-user, 4-level Merkle tree.
+func TestMerkleCircuit(t *testing.T) {
+	// Step 1: Initialize 16 users
+	users := make([]merkle.UserState, 16)
+	for i := 0; i < 16; i++ {
+		users[i] = merkle.UserState{
+			Name: big.NewInt(int64(i + 1)),     // Names: 1 to 16
+			Ben:  big.NewInt(100),              // Initial balance: 100 BEN each
+		}
+	}
+
+	// Step 2: Compute the old Merkle root
+	oldRoot := merkle.BuildMerkleStates(users)
+
+	// Step 3: Choose user 2 (index 1) and generate Merkle proof for their old state
+	userIndex := 1
+	oldUser := users[userIndex]
+	H_old := merkle.HashUserState(oldUser)
+	proof, err := merkle.GenerateMerkleProof(users, H_old)
+	if err != nil {
+		t.Fatalf("Failed to generate Merkle proof for user %d: %v", userIndex+1, err)
+	}
+
+	// Step 4: Update user 2’s state (deposit 20 BEN)
+	newUser := merkle.UserState{
+		Name: oldUser.Name,
+		Ben:  new(big.Int).Add(oldUser.Ben, big.NewInt(20)), // 100 + 20 = 120 BEN
+	}
+
+	// Step 5: Compute the new Merkle root
+	newRoot := merkle.UpdateMerkleRoot(proof, newUser)
+
+	// Step 6: Prepare PathBits as *big.Int for the circuit
+	var pathBits [D]frontend.Variable
+	for i, b := range proof.PathBits {
+		if b {
+			pathBits[i] = big.NewInt(1)
+		} else {
+			pathBits[i] = big.NewInt(0)
+		}
+	}
+
+	// Step 7: Set up the circuit assignment
+	assignment := MerkleCircuit{
+		OldRoot:    oldRoot,
+		NewRoot:    newRoot,
+		OldName:    oldUser.Name,
+		OldBalance: oldUser.Ben,
+		NewName:    newUser.Name,
+		NewBalance: newUser.Ben,
+		Siblings:   [D]frontend.Variable{
+			proof.Siblings[0],
+			proof.Siblings[1],
+			proof.Siblings[2],
+			proof.Siblings[3],
+		},
+		PathBits: pathBits,
+	}
+
+	// Step 8: Compile the circuit
+	var circuit MerkleCircuit
+	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		t.Fatalf("Failed to compile circuit: %v", err)
+	}
+
+	// Step 9: Setup proving and verifying keys
+	pk, vk, err := groth16.Setup(ccs)
+	if err != nil {
+		t.Fatalf("Failed to setup proving/verifying keys: %v", err)
+	}
+
+	// Step 10: Create full witness and generate proof
+	fullWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
+	if err != nil {
+		t.Fatalf("Failed to create full witness: %v", err)
+	}
+	proofZk, err := groth16.Prove(ccs, pk, fullWitness)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	// Step 11: Create public witness and verify proof
+	publicWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
+	if err != nil {
+		t.Fatalf("Failed to create public witness: %v", err)
+	}
+	err = groth16.Verify(proofZk, vk, publicWitness)
+	if err != nil {
+		t.Fatalf("Failed to verify proof: %v", err)
+	}
+
+	t.Log("Successfully verified MerkleCircuit proof for updating user 2's balance!")
 }

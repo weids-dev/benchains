@@ -6,7 +6,7 @@ package circuit
 
 import (
 	// "fmt"
-	"math/big"
+	// "math/big"
 
 	// ---------------------------
 	//  GNARK libraries
@@ -17,16 +17,10 @@ import (
 	// ---------------------------
 	//  GNARK-CRYPTO libraries
 	// ---------------------------
-	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
-	gcHash "github.com/consensys/gnark-crypto/hash"
 )
 
-// Constants for the circuit
-const (
-	NameLength = 10  // Maximum name length, padded with zeros
-	TreeDepth  = 5   // Depth for up to 32 leaves (log2(24) ≈ 5)
-)
-
+// D is the depth of the Merkle tree (4 levels for 16 users)
+const D = 4
 
 // DepositCircuit enforces that:
 //
@@ -47,26 +41,125 @@ type DepositCircuit struct {
 	SiblingBalance frontend.Variable `gnark:"siblingBalance"` // Alice's balance, in this simplified example
 }
 
-
-// MerkleUpdateCircuit verifies a Merkle root update for a single leaf change.
-type MerkleUpdateCircuit struct {
+// UserStateCircuit verifies the update of a user's state in a two-user Merkle tree.
+// It ensures that the old and new Merkle roots are correctly computed based on the
+// user’s state transition and the unchanged sibling’s hash.
+type UserStateCircuit struct {
 	// Public inputs
-	OldRoot       frontend.Variable `gnark:"oldRoot,public"`
-	NewRoot       frontend.Variable `gnark:"newRoot,public"`
-	DepositAmount frontend.Variable `gnark:"depositAmount,public"`
+	OldRoot frontend.Variable `gnark:"oldRoot,public"`
+	NewRoot frontend.Variable `gnark:"newRoot,public"`
 
-    // Private inputs
-    OldUserState  UserStateCircuit
-    NewUserState  UserStateCircuit
-    PathBits      [TreeDepth]frontend.Variable // Merkle path directions (0 or 1)
-    Siblings      [TreeDepth]frontend.Variable // Sibling hashes along the path
+	// Private inputs
+	OldName     frontend.Variable `gnark:"oldName"`
+	OldBalance  frontend.Variable `gnark:"oldBalance"`
+	NewName     frontend.Variable `gnark:"newName"`
+	NewBalance  frontend.Variable `gnark:"newBalance"`
+	SiblingHash frontend.Variable `gnark:"siblingHash"`
+	PathBit     frontend.Variable `gnark:"pathBit"` // 0 (right) or 1 (left)
 }
 
-// UserStateCircuit represents a user state in the circuit
-type UserStateCircuit struct {
-    NameBytes    [NameLength]frontend.Variable // Name as byte array
-    Balance      frontend.Variable             // Balance as field element
-    BalanceBytes [32]frontend.Variable         // Balance as 32-byte array for hashing
+// MerkleCircuit verifies a state update for a single user in a Merkle tree.
+type MerkleCircuit struct {
+	// Public inputs
+	OldRoot frontend.Variable `gnark:"oldRoot,public"`
+	NewRoot frontend.Variable `gnark:"newRoot,public"`
+
+	// Private inputs
+	OldName    frontend.Variable    `gnark:"oldName"`
+	OldBalance frontend.Variable    `gnark:"oldBalance"`
+	NewName    frontend.Variable    `gnark:"newName"`
+	NewBalance frontend.Variable    `gnark:"newBalance"`
+	Siblings   [D]frontend.Variable `gnark:"siblings"`
+	PathBits   [D]frontend.Variable `gnark:"pathBits"`
+}
+
+// Define implements the circuit constraints.
+func (c *MerkleCircuit) Define(api frontend.API) error {
+	// Compute old leaf hash: H_old = MiMC(OldName, OldBalance)
+	mimcOld, err := mimc.NewMiMC(api)
+	if err != nil {
+		return err
+	}
+	mimcOld.Write(c.OldName, c.OldBalance)
+	H_old := mimcOld.Sum()
+
+	// Compute old root from H_old and Merkle proof
+	currentHashOld := H_old
+	for i := 0; i < D; i++ {
+		// If PathBits[i] = 1 (true), current node is left: hash(current, sibling)
+		// If PathBits[i] = 0 (false), current node is right: hash(sibling, current)
+		left := api.Select(c.PathBits[i], currentHashOld, c.Siblings[i])
+		right := api.Select(c.PathBits[i], c.Siblings[i], currentHashOld)
+		mimcLevel, err := mimc.NewMiMC(api)
+		if err != nil {
+			return err
+		}
+		mimcLevel.Write(left, right)
+		currentHashOld = mimcLevel.Sum()
+	}
+	api.AssertIsEqual(currentHashOld, c.OldRoot)
+
+	// Compute new leaf hash: H_new = MiMC(NewName, NewBalance)
+	mimcNew, err := mimc.NewMiMC(api)
+	if err != nil {
+		return err
+	}
+	mimcNew.Write(c.NewName, c.NewBalance)
+	H_new := mimcNew.Sum()
+
+	// Compute new root from H_new and the same Merkle proof
+	currentHashNew := H_new
+	for i := 0; i < D; i++ {
+		left := api.Select(c.PathBits[i], currentHashNew, c.Siblings[i])
+		right := api.Select(c.PathBits[i], c.Siblings[i], currentHashNew)
+		mimcLevel, err := mimc.NewMiMC(api)
+		if err != nil {
+			return err
+		}
+		mimcLevel.Write(left, right)
+		currentHashNew = mimcLevel.Sum()
+	}
+	api.AssertIsEqual(currentHashNew, c.NewRoot)
+
+	// Constrain PathBits to be boolean (0 or 1)
+	for i := 0; i < D; i++ {
+		api.AssertIsBoolean(c.PathBits[i])
+	}
+
+	return nil
+}
+
+// Define implements the circuit constraints.
+func (c *UserStateCircuit) Define(api frontend.API) error {
+	// Compute hash of the old user state: H_old = MiMC(OldName, OldBalance)
+	mimcOld, _ := mimc.NewMiMC(api)
+	mimcOld.Write(c.OldName, c.OldBalance)
+	H_old := mimcOld.Sum()
+
+	// Compute hash of the new user state: H_new = MiMC(NewName, NewBalance)
+	mimcNew, _ := mimc.NewMiMC(api)
+	mimcNew.Write(c.NewName, c.NewBalance)
+	H_new := mimcNew.Sum()
+
+	// Compute the old root based on PathBit
+	leftOld := api.Select(c.PathBit, H_old, c.SiblingHash)  // PathBit=1: H_old, PathBit=0: SiblingHash
+	rightOld := api.Select(c.PathBit, c.SiblingHash, H_old) // PathBit=1: SiblingHash, PathBit=0: H_old
+	mimcRootOld, _ := mimc.NewMiMC(api)
+	mimcRootOld.Write(leftOld, rightOld)
+	computedOldRoot := mimcRootOld.Sum()
+
+	// Compute the new root based on PathBit
+	leftNew := api.Select(c.PathBit, H_new, c.SiblingHash)  // PathBit=1: H_new, PathBit=0: SiblingHash
+	rightNew := api.Select(c.PathBit, c.SiblingHash, H_new) // PathBit=1: SiblingHash, PathBit=0: H_new
+	mimcRootNew, _ := mimc.NewMiMC(api)
+	mimcRootNew.Write(leftNew, rightNew)
+	computedNewRoot := mimcRootNew.Sum()
+
+	// Enforce that computed roots match the public inputs
+	api.AssertIsEqual(computedOldRoot, c.OldRoot)
+	api.AssertIsEqual(computedNewRoot, c.NewRoot)
+
+	return nil
 }
 
 // Define implements the circuit constraints.
@@ -92,99 +185,4 @@ func (c *DepositCircuit) Define(api frontend.API) error {
 	// fmt.Print(computedNewRoot)
 
 	return nil
-}
-
-// Define implements the circuit constraints
-func (c *MerkleUpdateCircuit) Define(api frontend.API) error {
-	// 1. Enforce that the names are the same (only balance changes)
-	for i := 0; i < NameLength; i++ {
-		api.AssertIsEqual(c.OldUserState.NameBytes[i], c.NewUserState.NameBytes[i])
-	}
-
-    // 2. Compute old leaf hash from old user state
-    oldLeafHash := hashUserStateCircuit(api, c.OldUserState)
-
-    // 3. Compute new leaf hash from new user state
-    newLeafHash := hashUserStateCircuit(api, c.NewUserState)
-
-    // 4. Verify old root: recompute root from oldLeafHash, PathBits, and Siblings
-    computedOldRoot := computeMerkleRoot(api, oldLeafHash, c.PathBits[:], c.Siblings[:])
-    api.AssertIsEqual(computedOldRoot, c.OldRoot)
-
-    // 5. Verify new root: recompute root from newLeafHash, same PathBits and Siblings
-    computedNewRoot := computeMerkleRoot(api, newLeafHash, c.PathBits[:], c.Siblings[:])
-    api.AssertIsEqual(computedNewRoot, c.NewRoot)
-
-    // 6. Enforce state transition: newBalance = oldBalance + DepositAmount
-    computedNewBalance := api.Add(c.OldUserState.Balance, c.DepositAmount)
-    api.AssertIsEqual(computedNewBalance, c.NewUserState.Balance)
-
-    return nil
-}
-
-// hashUserStateCircuit hashes name bytes and balance bytes using MiMC, matching off-chain hashing
-func hashUserStateCircuit(api frontend.API, user UserStateCircuit) frontend.Variable {
-    mimc, _ := mimc.NewMiMC(api)
-    // Write name bytes
-    for i := 0; i < NameLength; i++ {
-        mimc.Write(user.NameBytes[i])
-    }
-    // Write balance bytes (32 bytes as in fr.Element.Bytes())
-    for i := 0; i < 32; i++ {
-        mimc.Write(user.BalanceBytes[i])
-    }
-    return mimc.Sum()
-}
-
-// computeMerkleRoot recomputes the Merkle root from a leaf and its proof
-func computeMerkleRoot(api frontend.API, leaf frontend.Variable, pathBits []frontend.Variable, siblings []frontend.Variable) frontend.Variable {
-    current := leaf
-    for i := 0; i < len(siblings); i++ {
-        isLeft := pathBits[i] // 1 if leaf is left child, 0 if right
-        left := api.Select(isLeft, current, siblings[i])
-        right := api.Select(isLeft, siblings[i], current)
-        mimc, _ := mimc.NewMiMC(api)
-        mimc.Write(left, right)
-        current = mimc.Sum()
-    }
-    return current
-}
-
-// UserState holds a user's name and balance (same as wrappers)
-type UserState struct {
-	Name    string
-	Balance *big.Int // TODO: Float
-}
-
-//--------------------------------------------------------------------------------
-// Helper function: hashUserState
-//
-// Hashes a single user state (Name + Balance) into a field element using MiMC_BN254
-// user can prove that the possess the same state by re-computing their claimed states
-// and producing the same hash that in the state Merkle tree (Merkle proof).
-//--------------------------------------------------------------------------------
-func hashUserState(user UserState) *big.Int {
-	// 1) Prepare a new MiMC hasher
-	hasher := gcHash.MIMC_BN254.New()
-
-	// 2) Convert user name (string) to bytes
-	nameBytes := []byte(user.Name)
-	// Write them into the hasher
-	_, _ = hasher.Write(nameBytes)
-
-	// 3) Convert user balance to fr.Element, then to bytes
-	var balanceFr fr.Element
-	balanceFr.SetBigInt(user.Balance)
-	balanceBytes := balanceFr.Bytes()
-	_, _ = hasher.Write(balanceBytes[:])
-
-	// 4) Compute the digest
-	digest := hasher.Sum(nil)
-
-	// 5) Convert the resulting digest back into a big.Int
-	var outFr fr.Element
-	outFr.SetBytes(digest);
-	res := new(big.Int)
-	outFr.BigInt(res)
-	return res
 }

@@ -23,9 +23,10 @@ type MProof struct {
 // Each UserState will be commit to the transaction root every period of time.
 // When exiting, user can withdraw all BEN stored on zk-rollups contract chain,
 // but he/she cannot move any unused deposits out.
+// (Which means in our current implementation, only final UserState is on-chain)
 type UserState struct {
-	Name     string
-	Ben      *big.Int
+    Name *big.Int
+    Ben  *big.Int
 }
 
 
@@ -43,27 +44,20 @@ type TransactionData struct {
 // user can prove that the possess the same state by re-computing their claimed states
 // and producing the same hash that in the state Merkle tree (Merkle proof).
 //--------------------------------------------------------------------------------
-
 func HashUserState(user UserState) *big.Int {
-	hasher := gcHash.MIMC_BN254.New()
+    hasher := gcHash.MIMC_BN254.New()
 
-	NameLength := 10
-    // Pad name to NameLength (10) bytes
-    nameBytes := []byte(user.Name)
-    if len(nameBytes) > NameLength {
-        nameBytes = nameBytes[:NameLength]
-    } else {
-        for len(nameBytes) < NameLength {
-            nameBytes = append(nameBytes, 0)
-        }
-    }
-    _, _ = hasher.Write(nameBytes)
+    // Convert Name to fr.Element and then to bytes
+    var nameFr fr.Element
+    nameFr.SetBigInt(user.Name)
+    nameBytes := nameFr.Bytes()
+    _, _ = hasher.Write(nameBytes[:])
 
-    // Convert balance to fr.Element bytes
-    var balanceFr fr.Element
-    balanceFr.SetBigInt(user.Ben)
-    balanceBytes := balanceFr.Bytes()
-    _, _ = hasher.Write(balanceBytes[:])
+    // Convert Ben to fr.Element and then to bytes
+    var benFr fr.Element
+    benFr.SetBigInt(user.Ben)
+    benBytes := benFr.Bytes()
+    _, _ = hasher.Write(benBytes[:])
 
     digest := hasher.Sum(nil)
     var outFr fr.Element
@@ -73,7 +67,7 @@ func HashUserState(user UserState) *big.Int {
     return res
 }
 
-// hashTransactionData hashes a single transaction (TxID + all Args)
+// HashTransactionData hashes a single transaction (TxID + all Args)
 // into a field element using MiMC_BN254.
 //
 // The order is:
