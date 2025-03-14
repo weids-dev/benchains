@@ -2,6 +2,7 @@
 
 package circuit
 
+
 // Implementing ZK-SNARKs Circuit using gnark library for ZK-Rollups
 
 import (
@@ -19,8 +20,12 @@ import (
 	// ---------------------------
 )
 
-// D is the depth of the Merkle tree (4 levels for 16 users)
-const D = 4
+// Constants
+const MD = 4
+
+const D = 6  // Depth of the Merkle tree
+const N = 64 // Number of leaves
+const B = 32 // Batch size
 
 // DepositCircuit enforces that:
 //
@@ -69,9 +74,110 @@ type MerkleCircuit struct {
 	OldBalance frontend.Variable    `gnark:"oldBalance"`
 	NewName    frontend.Variable    `gnark:"newName"`
 	NewBalance frontend.Variable    `gnark:"newBalance"`
-	Siblings   [D]frontend.Variable `gnark:"siblings"`
-	PathBits   [D]frontend.Variable `gnark:"pathBits"`
+	Siblings   [MD]frontend.Variable `gnark:"siblings"`
+	PathBits   [MD]frontend.Variable `gnark:"pathBits"`
 }
+
+// BatchMerkleCircuit verifies a batch of up to 32 transactions updating a Merkle tree.
+type BatchMerkleCircuit struct {
+	// Public inputs
+	OldRoot frontend.Variable `gnark:"oldRoot,public"`
+	NewRoot frontend.Variable `gnark:"newRoot,public"`
+	Transactions [B]struct {
+		LeafIndex     frontend.Variable `gnark:"leafIndex"`
+		DepositAmount frontend.Variable `gnark:"depositAmount"`
+	} `gnark:",public"`
+
+	// Private inputs
+	InitialLeaves [N]struct {
+		Name frontend.Variable `gnark:"name"`
+		Ben  frontend.Variable `gnark:"ben"`
+	}
+}
+
+// computeMerkleRoot computes the Merkle root from an array of leaves.
+// Time complexity: O(N) where N is the number of leaves.
+// In our zk-SNARK circuit, the time is dominated by the MiMC hash function in the function.
+func computeMerkleRoot(api frontend.API, leaves [N]frontend.Variable) frontend.Variable {
+	// Level 0: Leaf hashes (already provided)
+	currentLevel := leaves[:]
+
+	// Iterate through D=4 levels to compute the root
+	for level := 0; level < D; level++ {
+		nextLevelSize := len(currentLevel) / 2
+		nextLevel := make([]frontend.Variable, nextLevelSize)
+		for i := 0; i < nextLevelSize; i++ {
+			mimcHash, _ := mimc.NewMiMC(api)
+			mimcHash.Write(currentLevel[2*i], currentLevel[2*i+1])
+			nextLevel[i] = mimcHash.Sum()
+		}
+		currentLevel = nextLevel
+	}
+	return currentLevel[0] // Root
+}
+
+// Define implements the circuit constraints.
+func (c *BatchMerkleCircuit) Define(api frontend.API) error {
+	// Step 1: Compute initial leaf hashes and Merkle root
+	var initialHashes [N]frontend.Variable
+	for i := 0; i < N; i++ {
+		mimcLeaf, err := mimc.NewMiMC(api)
+		if err != nil {
+			return err
+		}
+		mimcLeaf.Write(c.InitialLeaves[i].Name, c.InitialLeaves[i].Ben)
+		initialHashes[i] = mimcLeaf.Sum()
+	}
+	initialRoot := computeMerkleRoot(api, initialHashes)
+	api.AssertIsEqual(initialRoot, c.OldRoot)
+
+	// Step 2: Compute total deposit per leaf
+	var totalDeposits [N]frontend.Variable
+	for i := 0; i < N; i++ {
+		totalDeposits[i] = 0 // Initialize to zero directly
+		for k := 0; k < B; k++ {
+			// Check if transaction k targets leaf i
+			// Compute delta = LeafIndex[k] - i
+			delta := api.Sub(c.Transactions[k].LeafIndex, i)
+			// isTarget = 1 if delta == 0 (i.e., LeafIndex[k] == i), else 0
+			isTarget := api.IsZero(delta)
+			// deposit = isTarget * DepositAmount[k] (if isTarget is 0, deposit is 0)
+			deposit := api.Mul(isTarget, c.Transactions[k].DepositAmount)
+			// Accumulate deposit
+			totalDeposits[i] = api.Add(totalDeposits[i], deposit)
+		}
+	}
+
+	// Step 3: Compute final leaf states
+	var finalBen [N]frontend.Variable
+	for i := 0; i < N; i++ {
+		finalBen[i] = api.Add(c.InitialLeaves[i].Ben, totalDeposits[i])
+	}
+
+	// Step 4: Compute final leaf hashes and Merkle root
+	var finalHashes [N]frontend.Variable
+	for i := 0; i < N; i++ {
+		mimcLeaf, err := mimc.NewMiMC(api)
+		if err != nil {
+			return err
+		}
+		// Name remains unchanged
+		mimcLeaf.Write(c.InitialLeaves[i].Name, finalBen[i])
+		finalHashes[i] = mimcLeaf.Sum()
+	}
+	finalRoot := computeMerkleRoot(api, finalHashes)
+	api.AssertIsEqual(finalRoot, c.NewRoot)
+
+	// Step 5: Ensure LeafIndex values are valid (0 to N-1)
+	for k := 0; k < B; k++ {
+		// Assert 0 <= LeafIndex[k] <= N-1
+		api.AssertIsLessOrEqual(0, c.Transactions[k].LeafIndex)
+		api.AssertIsLessOrEqual(c.Transactions[k].LeafIndex, N-1)
+	}
+
+	return nil
+}
+
 
 // Define implements the circuit constraints.
 func (c *MerkleCircuit) Define(api frontend.API) error {
@@ -85,7 +191,7 @@ func (c *MerkleCircuit) Define(api frontend.API) error {
 
 	// Compute old root from H_old and Merkle proof
 	currentHashOld := H_old
-	for i := 0; i < D; i++ {
+	for i := 0; i < MD; i++ {
 		// If PathBits[i] = 1 (true), current node is left: hash(current, sibling)
 		// If PathBits[i] = 0 (false), current node is right: hash(sibling, current)
 		left := api.Select(c.PathBits[i], currentHashOld, c.Siblings[i])
@@ -109,7 +215,7 @@ func (c *MerkleCircuit) Define(api frontend.API) error {
 
 	// Compute new root from H_new and the same Merkle proof
 	currentHashNew := H_new
-	for i := 0; i < D; i++ {
+	for i := 0; i < MD; i++ {
 		left := api.Select(c.PathBits[i], currentHashNew, c.Siblings[i])
 		right := api.Select(c.PathBits[i], c.Siblings[i], currentHashNew)
 		mimcLevel, err := mimc.NewMiMC(api)
@@ -122,7 +228,7 @@ func (c *MerkleCircuit) Define(api frontend.API) error {
 	api.AssertIsEqual(currentHashNew, c.NewRoot)
 
 	// Constrain PathBits to be boolean (0 or 1)
-	for i := 0; i < D; i++ {
+	for i := 0; i < MD; i++ {
 		api.AssertIsBoolean(c.PathBits[i])
 	}
 

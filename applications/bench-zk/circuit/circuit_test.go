@@ -5,6 +5,7 @@ package circuit
 import (
 	"testing"
 	"math/big"
+	"math/rand"
 
 	// ---------------------------
 	//  GNARK libraries
@@ -17,7 +18,7 @@ import (
 	//  GNARK-CRYPTO libraries
 	// ---------------------------
 	"github.com/consensys/gnark-crypto/ecc"
-    // "github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	// "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 
 	"bench-zk/utils"
 	"bench-zk/merkle"
@@ -250,7 +251,7 @@ func TestMerkleCircuit(t *testing.T) {
 	newRoot := merkle.UpdateMerkleRoot(proof, newUser)
 
 	// Step 6: Prepare PathBits as *big.Int for the circuit
-	var pathBits [D]frontend.Variable
+	var pathBits [MD]frontend.Variable
 	for i, b := range proof.PathBits {
 		if b {
 			pathBits[i] = big.NewInt(1)
@@ -267,7 +268,7 @@ func TestMerkleCircuit(t *testing.T) {
 		OldBalance: oldUser.Ben,
 		NewName:    newUser.Name,
 		NewBalance: newUser.Ben,
-		Siblings:   [D]frontend.Variable{
+		Siblings:   [MD]frontend.Variable{
 			proof.Siblings[0],
 			proof.Siblings[1],
 			proof.Siblings[2],
@@ -310,4 +311,87 @@ func TestMerkleCircuit(t *testing.T) {
 	}
 
 	t.Log("Successfully verified MerkleCircuit proof for updating user 2's balance!")
+}
+
+func TestBatchMerkleCircuit(t *testing.T) {
+	// Step 1: Initialize 16 users
+	var initialLeaves [N]merkle.UserState
+	for i := 0; i < N; i++ {
+		initialLeaves[i] = merkle.UserState{
+			Name: big.NewInt(int64(i + 1)), // Names: 1 to 16
+			Ben:  big.NewInt(100),          // Initial balance: 100
+		}
+	}
+
+	// Step 2: Compute the initial Merkle root
+	oldRoot := merkle.BuildMerkleStates(initialLeaves[:])
+
+	// Step 3: Generate 32 random transactions
+	var transactions [B]struct {
+		LeafIndex     int
+		DepositAmount *big.Int
+	}
+	currentLeaves := make([]merkle.UserState, N)
+	copy(currentLeaves, initialLeaves[:])
+	for k := 0; k < B; k++ {
+		leafIndex := rand.Intn(N)                     // Random leaf: 0 to 15
+		depositAmount := big.NewInt(int64(rand.Intn(11))) // Random deposit: 0 to 10
+		transactions[k] = struct {
+			LeafIndex     int
+			DepositAmount *big.Int
+		}{leafIndex, depositAmount}
+		// Apply update off-circuit
+		currentLeaves[leafIndex].Ben = new(big.Int).Add(currentLeaves[leafIndex].Ben, depositAmount)
+	}
+
+	// Step 4: Compute the final Merkle root
+	newRoot := merkle.BuildMerkleStates(currentLeaves)
+
+	// Step 5: Set up the circuit assignment
+	var assignment BatchMerkleCircuit
+	assignment.OldRoot = oldRoot
+	assignment.NewRoot = newRoot
+	for k := 0; k < B; k++ {
+		assignment.Transactions[k].LeafIndex = big.NewInt(int64(transactions[k].LeafIndex))
+		assignment.Transactions[k].DepositAmount = transactions[k].DepositAmount
+	}
+	for i := 0; i < N; i++ {
+		assignment.InitialLeaves[i].Name = initialLeaves[i].Name
+		assignment.InitialLeaves[i].Ben = initialLeaves[i].Ben
+	}
+
+	// Step 6: Compile the circuit
+	var circuit BatchMerkleCircuit
+	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		t.Fatalf("Failed to compile circuit: %v", err)
+	}
+
+	// Step 7: Setup proving and verifying keys
+	pk, vk, err := groth16.Setup(ccs)
+	if err != nil {
+		t.Fatalf("Failed to setup proving/verifying keys: %v", err)
+	}
+
+	// Step 8: Generate proof
+	fullWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
+	if err != nil {
+		t.Fatalf("Failed to create full witness: %v", err)
+	}
+	proof, err := groth16.Prove(ccs, pk, fullWitness)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+
+	// Step 9: Verify proof
+	publicWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
+	if err != nil {
+		t.Fatalf("Failed to create public witness: %v", err)
+	}
+	err = groth16.Verify(proof, vk, publicWitness)
+	if err != nil {
+		t.Fatalf("Failed to verify proof: %v", err)
+	}
+
+	t.Log("Successfully verified BatchMerkleCircuit proof for 32 transactions!")
 }
