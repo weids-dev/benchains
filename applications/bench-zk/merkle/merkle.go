@@ -3,20 +3,20 @@
 package merkle
 
 import (
+	"encoding/base64"
 	"fmt"
 	"math/big"
-	"encoding/base64"
 
 	"bench-zk/utils"
 
-	gcHash "github.com/consensys/gnark-crypto/hash"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	gcHash "github.com/consensys/gnark-crypto/hash"
 )
 
 // MProof represents the Merkle proof for a specific leaf in the Merkle tree.
 type MProof struct {
-	PathBits []bool      // Indicates the direction (left or right) at each level of the tree
-	Siblings []*big.Int  // Contains the sibling hashes at each level of the tree
+	PathBits []bool     // Indicates the direction (left or right) at each level of the tree
+	Siblings []*big.Int // Contains the sibling hashes at each level of the tree
 }
 
 // UserState holds a user's name, balance ($BEN).
@@ -25,10 +25,9 @@ type MProof struct {
 // but he/she cannot move any unused deposits out.
 // (Which means in our current implementation, only final UserState is on-chain)
 type UserState struct {
-    Name *big.Int
-    Ben  *big.Int
+	Name *big.Int
+	Ben  *big.Int
 }
-
 
 // TransactionData holds the transaction ID and its corresponding args
 type TransactionData struct {
@@ -36,43 +35,42 @@ type TransactionData struct {
 	Args []string
 }
 
-
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 // Helper function: HashUserState
 //
 // Hashes a single user state (Name + Balance) into a field element using MiMC_BN254
 // user can prove that the possess the same state by re-computing their claimed states
 // and producing the same hash that in the state Merkle tree (Merkle proof).
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 func HashUserState(user UserState) *big.Int {
-    hasher := gcHash.MIMC_BN254.New()
+	hasher := gcHash.MIMC_BN254.New()
 
-    // Convert Name to fr.Element and then to bytes
-    var nameFr fr.Element
-    nameFr.SetBigInt(user.Name)
-    nameBytes := nameFr.Bytes()
-    _, _ = hasher.Write(nameBytes[:])
+	// Convert Name to fr.Element and then to bytes
+	var nameFr fr.Element
+	nameFr.SetBigInt(user.Name)
+	nameBytes := nameFr.Bytes()
+	_, _ = hasher.Write(nameBytes[:])
 
-    // Convert Ben to fr.Element and then to bytes
-    var benFr fr.Element
-    benFr.SetBigInt(user.Ben)
-    benBytes := benFr.Bytes()
-    _, _ = hasher.Write(benBytes[:])
+	// Convert Ben to fr.Element and then to bytes
+	var benFr fr.Element
+	benFr.SetBigInt(user.Ben)
+	benBytes := benFr.Bytes()
+	_, _ = hasher.Write(benBytes[:])
 
-    digest := hasher.Sum(nil)
-    var outFr fr.Element
-    outFr.SetBytes(digest)
-    res := new(big.Int)
-    outFr.BigInt(res)
-    return res
+	digest := hasher.Sum(nil)
+	var outFr fr.Element
+	outFr.SetBytes(digest)
+	res := new(big.Int)
+	outFr.BigInt(res)
+	return res
 }
 
 // HashTransactionData hashes a single transaction (TxID + all Args)
 // into a field element using MiMC_BN254.
 //
 // The order is:
-//   1. TxID (as bytes) first,
-//   2. Then each argument (in sequence).
+//  1. TxID (as bytes) first,
+//  2. Then each argument (in sequence).
 func HashTransactionData(tx TransactionData) *big.Int {
 	hasher := gcHash.MIMC_BN254.New()
 
@@ -103,15 +101,15 @@ func HashTransactionData(tx TransactionData) *big.Int {
 func MerkleRootToBase64(root *big.Int) string {
 	// 1) Convert big.Int to a big-endian byte slice
 	rootBytes := root.Bytes()
-	
+
 	// 2) Encode to base64
 	encoded := base64.StdEncoding.EncodeToString(rootBytes)
-	
+
 	return encoded
 }
 
-// BuildMerkleTransactions takes a list of transactions, 
-// hashes each transaction to produce leaves, and then builds 
+// BuildMerkleTransactions takes a list of transactions,
+// hashes each transaction to produce leaves, and then builds
 // a Merkle tree using pairwise MiMC hashing. It returns the Merkle root as *big.Int.
 func BuildMerkleTransactions(txs []TransactionData) *big.Int {
 	// 1) Create a leaf for each transaction by hashing it.
@@ -147,14 +145,13 @@ func BuildMerkleTransactions(txs []TransactionData) *big.Int {
 	return leaves[0]
 }
 
-
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 // Helper function: BuildMerkleStates
 //
 // Builds a (very naive) Merkle tree from a slice of UserState.
 // Each leaf = HashUserState(user.Name, user.Balance).
 // Then pairwise hash to get parent, etc. Returns the Merkle root as *big.Int.
-//--------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------
 func BuildMerkleStates(users []UserState) *big.Int {
 	// 1) Hash each user into a leaf
 	var leaves []*big.Int
@@ -262,24 +259,23 @@ func VerifyMerkleProof(root *big.Int, leaf *big.Int, proof *MProof) bool {
 	return currentHash.Cmp(root) == 0
 }
 
-
 // UpdateMerkleRoot computes the new Merkle root and proof for an updated user state,
 // given the previous proof for that user's state for the previous root.
-func UpdateMerkleRoot(prevProof *MProof, newUserState UserState) (*big.Int) {
+func UpdateMerkleRoot(prevProof *MProof, newUserState UserState) *big.Int {
 	// Compute the new leaf hash from the updated user state
 	newLeafHash := HashUserState(newUserState)
 	currentHash := new(big.Int).Set(newLeafHash)
 
-    // Recompute the root by hashing up the path using the previous proof's siblings
-    for i, sibling := range prevProof.Siblings {
-        if prevProof.PathBits[i] {
-            // Leaf was on the left: hash(currentHash, sibling)
-            currentHash = utils.ComputeMiMC(currentHash, sibling)
-        } else {
-            // Leaf was on the right: hash(sibling, currentHash)
-            currentHash = utils.ComputeMiMC(sibling, currentHash)
-        }
-    }
+	// Recompute the root by hashing up the path using the previous proof's siblings
+	for i, sibling := range prevProof.Siblings {
+		if prevProof.PathBits[i] {
+			// Leaf was on the left: hash(currentHash, sibling)
+			currentHash = utils.ComputeMiMC(currentHash, sibling)
+		} else {
+			// Leaf was on the right: hash(sibling, currentHash)
+			currentHash = utils.ComputeMiMC(sibling, currentHash)
+		}
+	}
 
-    return currentHash
+	return currentHash
 }

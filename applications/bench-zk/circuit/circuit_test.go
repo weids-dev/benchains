@@ -3,9 +3,10 @@
 package circuit
 
 import (
-	"testing"
 	"math/big"
 	"math/rand"
+	"testing"
+	"time"
 
 	// ---------------------------
 	//  GNARK libraries
@@ -20,8 +21,8 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	// "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 
-	"bench-zk/utils"
 	"bench-zk/merkle"
+	"bench-zk/utils"
 )
 
 // TestDepositCircuit tests the entire flow of circuit compilation, proving, and verification
@@ -66,18 +67,19 @@ func TestDepositCircuit(t *testing.T) {
 		DepositAmount: deposit,
 
 		// private
-		BobOldBalance: zero,   // Bob had 0
-		BobNewBalance: bobNew, // Bob now has 300
-		SiblingBalance: zero,  // Alice's balance remains 0
+		BobOldBalance:  zero,   // Bob had 0
+		BobNewBalance:  bobNew, // Bob now has 300
+		SiblingBalance: zero,   // Alice's balance remains 0
 	}
 
-	//----------------------------------------------------------------
 	// e) Full witness
 	//----------------------------------------------------------------
 	fullWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Fatalf("Failed to create full witness: %v", err)
 	}
+	start := time.Now()
+	//----------------------------------------------------------------
 
 	//----------------------------------------------------------------
 	// f) Generate the proof
@@ -86,7 +88,9 @@ func TestDepositCircuit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate proof: %v", err)
 	}
+	proofTime := time.Since(start)
 
+	start = time.Now()
 	//----------------------------------------------------------------
 	// g) Verify the proof with public inputs only
 	//----------------------------------------------------------------
@@ -94,6 +98,7 @@ func TestDepositCircuit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create public witness: %v", err)
 	}
+	verifyTime := time.Since(start)
 
 	err = groth16.Verify(proof, vk, publicWitness)
 	if err != nil {
@@ -104,8 +109,8 @@ func TestDepositCircuit(t *testing.T) {
 	// If no error occurred, the test passed
 	//----------------------------------------------------------------
 	t.Log("Test passed successfully!")
+	t.Logf("DepositCircuit: Depth=1, Leaves=2, Proof Generation Time=%v, Verification Time=%v", proofTime, verifyTime)
 }
-
 
 // TestUserStateCircuit tests the UserStateCircuit with a two-user, one-level Merkle tree.
 func TestUserStateCircuit(t *testing.T) {
@@ -161,20 +166,24 @@ func TestUserStateCircuit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create full witness for user A: %v", err)
 	}
+	start := time.Now()
 	proofAzk, err := groth16.Prove(ccs, pk, fullWitnessA)
 	if err != nil {
 		t.Fatalf("Failed to generate proof for user A: %v", err)
 	}
+	proofTime := time.Since(start)
 
 	// Step 10: Create public witness and verify proof for user A
 	publicWitnessA, err := frontend.NewWitness(&assignmentA, ecc.BN254.ScalarField(), frontend.PublicOnly())
 	if err != nil {
 		t.Fatalf("Failed to create public witness for user A: %v", err)
 	}
+	start = time.Now()
 	err = groth16.Verify(proofAzk, vk, publicWitnessA)
 	if err != nil {
 		t.Fatalf("Failed to verify proof for user A: %v", err)
 	}
+	verifyTime := time.Since(start)
 
 	// Step 11: Test updating user B (right leaf)
 	userBUpdated := merkle.UserState{Name: big.NewInt(2), Ben: big.NewInt(250)}
@@ -216,6 +225,7 @@ func TestUserStateCircuit(t *testing.T) {
 	}
 
 	t.Log("Test passed successfully for both user A and user B updates!")
+	t.Logf("UserStateCircuit: Depth=1, Leaves=2, Proof Generation Time=%v, Verification Time=%v", proofTime, verifyTime)
 }
 
 // TestMerkleCircuit tests the MerkleCircuit with a 16-user, 4-level Merkle tree.
@@ -224,8 +234,8 @@ func TestMerkleCircuit(t *testing.T) {
 	users := make([]merkle.UserState, 16)
 	for i := 0; i < 16; i++ {
 		users[i] = merkle.UserState{
-			Name: big.NewInt(int64(i + 1)),     // Names: 1 to 16
-			Ben:  big.NewInt(100),              // Initial balance: 100 BEN each
+			Name: big.NewInt(int64(i + 1)), // Names: 1 to 16
+			Ben:  big.NewInt(100),          // Initial balance: 100 BEN each
 		}
 	}
 
@@ -268,7 +278,7 @@ func TestMerkleCircuit(t *testing.T) {
 		OldBalance: oldUser.Ben,
 		NewName:    newUser.Name,
 		NewBalance: newUser.Ben,
-		Siblings:   [MD]frontend.Variable{
+		Siblings: [MD]frontend.Variable{
 			proof.Siblings[0],
 			proof.Siblings[1],
 			proof.Siblings[2],
@@ -295,22 +305,27 @@ func TestMerkleCircuit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create full witness: %v", err)
 	}
+	start := time.Now()
 	proofZk, err := groth16.Prove(ccs, pk, fullWitness)
 	if err != nil {
 		t.Fatalf("Failed to generate proof: %v", err)
 	}
+	proofTime := time.Since(start)
 
 	// Step 11: Create public witness and verify proof
 	publicWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
 	if err != nil {
 		t.Fatalf("Failed to create public witness: %v", err)
 	}
+	start = time.Now()
 	err = groth16.Verify(proofZk, vk, publicWitness)
 	if err != nil {
 		t.Fatalf("Failed to verify proof: %v", err)
 	}
+	verifyTime := time.Since(start)
 
 	t.Log("Successfully verified MerkleCircuit proof for updating user 2's balance!")
+	t.Logf("MerkleCircuit: Depth=4, Leaves=16, Proof Generation Time=%v, Verification Time=%v", proofTime, verifyTime)
 }
 
 func TestBatchMerkleCircuit(t *testing.T) {
@@ -324,6 +339,7 @@ func TestBatchMerkleCircuit(t *testing.T) {
 	}
 
 	// Step 2: Compute the initial Merkle root
+	start := time.Now()
 	oldRoot := merkle.BuildMerkleStates(initialLeaves[:])
 
 	// Step 3: Generate 32 random transactions
@@ -334,7 +350,7 @@ func TestBatchMerkleCircuit(t *testing.T) {
 	currentLeaves := make([]merkle.UserState, N)
 	copy(currentLeaves, initialLeaves[:])
 	for k := 0; k < B; k++ {
-		leafIndex := rand.Intn(N)                     // Random leaf: 0 to 15
+		leafIndex := rand.Intn(N)                         // Random leaf: 0 to 15
 		depositAmount := big.NewInt(int64(rand.Intn(11))) // Random deposit: 0 to 10
 		transactions[k] = struct {
 			LeafIndex     int
@@ -359,8 +375,10 @@ func TestBatchMerkleCircuit(t *testing.T) {
 		assignment.InitialLeaves[i].Name = initialLeaves[i].Name
 		assignment.InitialLeaves[i].Ben = initialLeaves[i].Ben
 	}
+	prepareTime := time.Since(start)
 
 	// Step 6: Compile the circuit
+	start = time.Now()
 	var circuit BatchMerkleCircuit
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 	if err != nil {
@@ -378,20 +396,146 @@ func TestBatchMerkleCircuit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create full witness: %v", err)
 	}
+	compileTime := time.Since(start)
+
+	start = time.Now()
 	proof, err := groth16.Prove(ccs, pk, fullWitness)
 	if err != nil {
 		t.Fatalf("Failed to generate proof: %v", err)
 	}
+	proofTime := time.Since(start)
 
 	// Step 9: Verify proof
 	publicWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
 	if err != nil {
 		t.Fatalf("Failed to create public witness: %v", err)
 	}
+	start = time.Now()
 	err = groth16.Verify(proof, vk, publicWitness)
 	if err != nil {
 		t.Fatalf("Failed to verify proof: %v", err)
 	}
+	verifyTime := time.Since(start)
 
-	t.Log("Successfully verified BatchMerkleCircuit proof for 32 transactions!")
+	t.Logf("Successfully verified BatchMerkleCircuit proof for %v transactions!", B)
+	t.Logf("BatchMerkleCircuit: Leaves=%d, Batch Size=%d, Proof Generation Time=%v, Verification Time=%v, Preparation Time=%v, Compile Time=%v", N, B, proofTime, verifyTime, prepareTime, compileTime)
+}
+
+// TestProofMerkleCircuit tests the ProofMerkleCircuit with adjustable D2 and B2.
+func TestProofMerkleCircuit(t *testing.T) {
+	const N2 = 1 << D2 // Number of leaves, e.g., 1024 for D2=10
+
+	// Step 1: Initialize users
+	var users [N2]merkle.UserState
+	for i := 0; i < N2; i++ {
+		users[i] = merkle.UserState{
+			Name: big.NewInt(int64(i + 1)), // Names: 1 to N2
+			Ben:  big.NewInt(100),          // Initial balance: 100
+		}
+	}
+
+	// Step 2: Compute initial Merkle root
+	oldRoot := merkle.BuildMerkleStates(users[:])
+
+	// Step 3: Generate B2 transactions with proofs
+	start := time.Now()
+	type Transaction struct {
+		LeafIndex     int
+		DepositAmount *big.Int
+		OldState      merkle.UserState
+		NewState      merkle.UserState
+		Proof         *merkle.MProof
+	}
+	var transactions [B2]Transaction
+	currentUsers := make([]merkle.UserState, N2)
+	copy(currentUsers, users[:])
+
+	for k := 0; k < B2; k++ {
+		leafIndex := rand.Intn(N2)
+		oldState := currentUsers[leafIndex]
+		H_old := merkle.HashUserState(oldState)
+		proof, err := merkle.GenerateMerkleProof(currentUsers, H_old)
+		if err != nil {
+			t.Fatalf("Failed to generate Merkle proof for transaction %d: %v", k, err)
+		}
+		depositAmount := big.NewInt(int64(rand.Intn(11))) // Random deposit: 0-10
+		newState := merkle.UserState{
+			Name: oldState.Name,
+			Ben:  new(big.Int).Add(oldState.Ben, depositAmount),
+		}
+		transactions[k] = Transaction{
+			LeafIndex:     leafIndex,
+			DepositAmount: depositAmount,
+			OldState:      oldState,
+			NewState:      newState,
+			Proof:         proof,
+		}
+		currentUsers[leafIndex] = newState // Update state for next iteration
+	}
+
+	// Step 4: Compute final Merkle root
+	newRoot := merkle.BuildMerkleStates(currentUsers)
+
+	// Step 5: Assign circuit values
+	var assignment ProofMerkleCircuit
+	assignment.OldRoot = oldRoot
+	assignment.NewRoot = newRoot
+	for k := 0; k < B2; k++ {
+		tx := transactions[k]
+		assignment.Transactions[k].OldName = tx.OldState.Name
+		assignment.Transactions[k].OldBalance = tx.OldState.Ben
+		assignment.Transactions[k].NewName = tx.NewState.Name
+		assignment.Transactions[k].NewBalance = tx.NewState.Ben
+		for i := 0; i < D2; i++ {
+			assignment.Transactions[k].Siblings[i] = tx.Proof.Siblings[i]
+			if tx.Proof.PathBits[i] {
+				assignment.Transactions[k].PathBits[i] = big.NewInt(1)
+			} else {
+				assignment.Transactions[k].PathBits[i] = big.NewInt(0)
+			}
+		}
+	}
+	prepareTime := time.Since(start)
+
+	start = time.Now()
+	// Step 6: Compile the circuit
+	var circuit ProofMerkleCircuit
+	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		t.Fatalf("Failed to compile circuit: %v", err)
+	}
+
+	// Step 7: Setup proving/verifying keys
+	pk, vk, err := groth16.Setup(ccs)
+	if err != nil {
+		t.Fatalf("Failed to setup keys: %v", err)
+	}
+
+	// Step 8: Generate proof and measure time
+	fullWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
+	if err != nil {
+		t.Fatalf("Failed to create full witness: %v", err)
+	}
+	compileTime := time.Since(start)
+
+	start = time.Now()
+	proof, err := groth16.Prove(ccs, pk, fullWitness)
+	if err != nil {
+		t.Fatalf("Failed to generate proof: %v", err)
+	}
+	proofTime := time.Since(start)
+
+	// Step 9: Verify proof
+	publicWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
+	if err != nil {
+		t.Fatalf("Failed to create public witness: %v", err)
+	}
+	start = time.Now()
+	err = groth16.Verify(proof, vk, publicWitness)
+	if err != nil {
+		t.Fatalf("Failed to verify proof: %v", err)
+	}
+	verifyTime := time.Since(start)
+
+	t.Logf("ProofMerkleCircuit: Depth=%d, Leaves=%d, Batch Size=%d, Proof Generation Time=%v, Verification Time=%v, Preparation Time=%v, Compile Time=%v", D2, N2, B2, proofTime, verifyTime, prepareTime, compileTime)
 }
