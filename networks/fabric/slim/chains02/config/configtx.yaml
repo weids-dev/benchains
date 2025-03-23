@@ -184,11 +184,11 @@ Orderer: &OrdererDefaults
   Addresses:
     - orderer1.ord02.chains:7002
   # Batch Timeout: The amount of time to wait before creating a batch
-  BatchTimeout: 0.5s
+  BatchTimeout: 1s
   # Batch Size: Controls the number of messages batched into a block
   BatchSize:
     # Max Message Count: The maximum number of messages to permit in a batch
-    MaxMessageCount: 20
+    MaxMessageCount: 32 # 32 Transactions per batch
     # Absolute Max Bytes: The absolute maximum number of bytes allowed for
     # the serialized messages in a batch.
     AbsoluteMaxBytes: 10 MB

@@ -1,9 +1,8 @@
-
 package gateway
 
 import (
-	"testing"
 	"fmt"
+	"testing"
 )
 
 func getDefaultChainConfig() Chain {
@@ -113,4 +112,3 @@ func TestExchangeInGameCurrency(t *testing.T) {
 	}
 	fmt.Println("All Players:", allPlayers)
 }
-

@@ -19,7 +19,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-
 // Gateway encapsulates all the resources needed to interact with the Fabric network.
 type Gateway struct {
 	ClientConnection *grpc.ClientConn
@@ -39,13 +38,12 @@ type Chain struct {
 	PeerEndpoint  string
 	GatewayPeer   string
 	ChannelName   string
-	ChaincodeName string 
+	ChaincodeName string
 }
-
 
 // Player is a placeholder struct matching the data on the ledger
 type Player struct {
-	ID       string `json:"ID"`
+	ID      string  `json:"ID"`
 	Balance float64 `json:"balance"` // Balance tracks the currency the player has.
 }
 
@@ -54,43 +52,42 @@ func NewGateway(chain Chain) (*Gateway, error) {
 	// 1. Setup gRPC connection
 	clientConnection := newGrpcConnection(chain)
 
-        // 2. Create Identity and Sign using the Chain struct
-        id, sign, err := newIdentityAndSign(chain)
-        if err != nil {
-                // Ensure to close the connection if identity creation fails
-                clientConnection.Close()
-                return nil, err
-        }
+	// 2. Create Identity and Sign using the Chain struct
+	id, sign, err := newIdentityAndSign(chain)
+	if err != nil {
+		// Ensure to close the connection if identity creation fails
+		clientConnection.Close()
+		return nil, err
+	}
 
-        // 3. Create a Fabric Gateway instance
-        gw, err := client.Connect(
-                id,
-                client.WithSign(sign),
-                client.WithClientConnection(clientConnection),
-                client.WithEvaluateTimeout(1*time.Minute),
-                client.WithEndorseTimeout(1*time.Minute),
-                client.WithSubmitTimeout(1*time.Minute),
-                client.WithCommitStatusTimeout(1*time.Minute),
-        )
-        if err != nil {
-                // Make sure to close clientConnection if gateway creation fails
-                clientConnection.Close()
-                return nil, fmt.Errorf("failed to connect to gateway: %w", err)
-        }
+	// 3. Create a Fabric Gateway instance
+	gw, err := client.Connect(
+		id,
+		client.WithSign(sign),
+		client.WithClientConnection(clientConnection),
+		client.WithEvaluateTimeout(1*time.Minute),
+		client.WithEndorseTimeout(1*time.Minute),
+		client.WithSubmitTimeout(1*time.Minute),
+		client.WithCommitStatusTimeout(1*time.Minute),
+	)
+	if err != nil {
+		// Make sure to close clientConnection if gateway creation fails
+		clientConnection.Close()
+		return nil, fmt.Errorf("failed to connect to gateway: %w", err)
+	}
 
+	// 4. Get contract
+	network := gw.GetNetwork(chain.ChannelName)
+	contract := network.GetContract(chain.ChaincodeName)
 
-        // 4. Get contract
-        network := gw.GetNetwork(chain.ChannelName)
-        contract := network.GetContract(chain.ChaincodeName)
-
-        return &Gateway{
-                ClientConnection: clientConnection,
-                Gateway:          gw,
-                Network:          network,
-                Contract:         contract,
-                ChaincodeName:    chain.ChaincodeName,
-                ChannelName:      chain.ChannelName,
-        }, nil
+	return &Gateway{
+		ClientConnection: clientConnection,
+		Gateway:          gw,
+		Network:          network,
+		Contract:         contract,
+		ChaincodeName:    chain.ChaincodeName,
+		ChannelName:      chain.ChannelName,
+	}, nil
 }
 
 // Close releases all resources held by the Gateway (close gRPC and Gateway).
@@ -210,7 +207,6 @@ func newGrpcConnection(chain Chain) *grpc.ClientConn {
 	return connection
 }
 
-
 // Format JSON data
 func formatJSON(data []byte) string {
 	var prettyJSON bytes.Buffer
@@ -258,49 +254,48 @@ func errorHandling(err error) {
 
 // newIdentityAndSign creates both identity and signature using the provided Chain configuration.
 func newIdentityAndSign(chain Chain) (*identity.X509Identity, identity.Sign, error) {
-        certificate, err := loadCertificate(chain.CertPath)
-        if err != nil {
-                return nil, nil, fmt.Errorf("failed to load certificate: %w", err)
-        }
+	certificate, err := loadCertificate(chain.CertPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load certificate: %w", err)
+	}
 
-        id, err := identity.NewX509Identity(chain.MspID, certificate)
-        if err != nil {
-                return nil, nil, fmt.Errorf("failed to create identity: %w", err)
-        }
+	id, err := identity.NewX509Identity(chain.MspID, certificate)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create identity: %w", err)
+	}
 
-        privateKeyPEM, err := loadPrivateKey(chain.KeyPath)
-        if err != nil {
-                return nil, nil, fmt.Errorf("failed to load private key: %w", err)
-        }
+	privateKeyPEM, err := loadPrivateKey(chain.KeyPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load private key: %w", err)
+	}
 
-        privateKey, err := identity.PrivateKeyFromPEM(privateKeyPEM)
-        if err != nil {
-                return nil, nil, fmt.Errorf("failed to parse private key: %w", err)
-        }
+	privateKey, err := identity.PrivateKeyFromPEM(privateKeyPEM)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
 
-        sign, err := identity.NewPrivateKeySign(privateKey)
-        if err != nil {
-                return nil, nil, fmt.Errorf("failed to create signature function: %w", err)
-        }
+	sign, err := identity.NewPrivateKeySign(privateKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create signature function: %w", err)
+	}
 
-        return id, sign, nil
+	return id, sign, nil
 }
 
 // loadPrivateKey reads the private key from the specified directory.
 func loadPrivateKey(keyPath string) ([]byte, error) {
-        files, err := os.ReadDir(keyPath)
-        if err != nil {
-                return nil, fmt.Errorf("failed to read private key directory: %w", err)
-        }
+	files, err := os.ReadDir(keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key directory: %w", err)
+	}
 
-        privateKeyPEM, err := os.ReadFile(path.Join(keyPath, files[0].Name()))
-        if err != nil {
-                return nil, fmt.Errorf("failed to read private key file: %w", err)
-        }
+	privateKeyPEM, err := os.ReadFile(path.Join(keyPath, files[0].Name()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key file: %w", err)
+	}
 
-        return privateKeyPEM, nil
+	return privateKeyPEM, nil
 }
-
 
 func loadCertificate(filename string) (*x509.Certificate, error) {
 	certificatePEM, err := os.ReadFile(filename)

@@ -22,12 +22,12 @@ import (
 const (
 	MD = 4 // Merkle Circuit
 
-	D = 12   // Depth of the Merkle tree
-	N = 4096 // Number of leaves
-	B = 64   // Batch size
+	D = 10   // Depth of the Merkle tree
+	N = 1024 // Number of leaves
+	B = 32   // Batch size
 
-	D2 = 12 // ProofMerkleCircuit: Number of Leaves would be 2^15 = 32768
-	B2 = 64 // Number of transactions in the batch
+	D2 = 10 // ProofMerkleCircuit: Number of Leaves would be 2^10 = 1024
+	B2 = 30 // Number of transactions in the batch
 )
 
 // DepositCircuit enforces that:

@@ -1,10 +1,11 @@
 // wrappers/wrappers_test.go
 package wrappers
 
-
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"bench-zk/gateway"
 )
@@ -76,13 +77,6 @@ func TestInit(t *testing.T) {
 		t.Logf("UserStates initialized as empty")
 	}
 
-	// Check if Deposits is empty
-	if len(wp.Deposits) != 0 {
-		t.Errorf("Expected Deposits to be empty, got %d", len(wp.Deposits))
-	} else {
-		t.Logf("Deposits initialized as empty")
-	}
-
 	if err := wp.Gw2.InitLedger(); err != nil {
 		t.Fatalf("InitLedger failed: %v\n", err)
 	}
@@ -94,6 +88,80 @@ func TestInit(t *testing.T) {
 	fmt.Println("All Players:", allPlayers)
 }
 
-func TestOperate(t *testing.T) {
-	wp.Operate()
+// TestSimulateTransactions tests the operator by simulating transactions and observing the output.
+func TestSimulateTransactions(t *testing.T) {
+	// Create a context with a 30-second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Run Operate in a goroutine
+	go func() {
+		if err := wp.Operate(ctx); err != nil {
+			t.Errorf("Operate failed: %v", err)
+		}
+	}()
+
+	// Wait briefly to ensure Operate starts
+	time.Sleep(1 * time.Second)
+
+	// Simulate transactions on Layer 2
+	contract := wp.Gw2.Contract
+
+	// Create a player with ID 1
+	createPlayer(contract, "4")
+
+	// Record a bank transaction: deposit 100 USD for user 4 (txID 123)
+	recordBankTransaction(contract, "4", "100", "123")
+
+	// Exchange 50 USD to BEN (this adds 50 BEN to the user's balance)
+	exchangeInGameCurrency(contract, "4", "50.0")
+
+	// Exchange BEN back to USD (this removes 20 BEN from the user's balance)
+	exchangeInGameCurrency(contract, "4", "-20.0")
+
+	// Wait for the context to timeout, giving Operate time to process blocks
+	<-ctx.Done()
+}
+
+// TestExchangeRateChanges tests the effect of changing the exchange rate.
+func TestExchangeRateChanges(t *testing.T) {
+	// Skip if not running extensive tests
+	// t.Skip("Skipping exchange rate test - run with -test.run=ExchangeRateChanges to execute")
+
+	// Create a context with a 30-second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Run Operate in a goroutine
+	go func() {
+		if err := wp.Operate(ctx); err != nil {
+			t.Errorf("Operate failed: %v", err)
+		}
+	}()
+
+	// Wait briefly to ensure Operate starts
+	time.Sleep(1 * time.Second)
+
+	contract := wp.Gw2.Contract
+
+	// Create a player
+	createPlayer(contract, "5")
+
+	// Deposit 1000 USD
+	recordBankTransaction(contract, "5", "1000", "456")
+
+	// Exchange 100 BEN at the default rate (1.0)
+	exchangeInGameCurrency(contract, "5", "100.0")
+
+	// Set a new exchange rate (2.0 - meaning 1 USD = 2 BEN)
+	_, err := contract.SubmitTransaction("CurrencyContract:SetExchangeRate", "2000") // 2.0 with 3 decimal places
+	if err != nil {
+		t.Errorf("Failed to set exchange rate: %v", err)
+	}
+
+	// Exchange another 100 BEN at the new rate (should cost less USD)
+	exchangeInGameCurrency(contract, "5", "100.0")
+
+	// Wait for the context to timeout
+	<-ctx.Done()
 }

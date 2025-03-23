@@ -60,7 +60,7 @@ func extractNewestBlockNumber(decodedChainInfo string) (uint64, error) {
 		return 0, fmt.Errorf("failed to parse decoded chain info data: %w", err)
 	}
 
-	log.Println("\n ChainInfo: ", chainInfo)
+	// log.Println("\n ChainInfo: ", chainInfo)
 
 	// Get the blockchain height
 	height, ok := chainInfo["height"].(string) // Block height is stored as a string in JSON
@@ -98,7 +98,7 @@ func extractTransactions(decodedBlock string) ([]merkle.TransactionData, error) 
 	// Define a struct to hold the decoded block data
 	var blockData map[string]interface{}
 	err := json.Unmarshal([]byte(decodedBlock), &blockData)
-	fmt.Printf("*** Decoded Block: %s\n", decodedBlock)
+	// fmt.Printf("*** Decoded Block: %s\n", decodedBlock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse decoded block data: %w", err)
 	}

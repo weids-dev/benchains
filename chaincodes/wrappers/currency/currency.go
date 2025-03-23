@@ -1,7 +1,6 @@
 package currency
 
 import (
-	"strconv"
 	"encoding/json"
 	"fmt"
 
@@ -13,6 +12,7 @@ import (
 // CurrencyContract defines the Smart Contract structure.
 type CurrencyContract struct {
 	contractapi.Contract
+	ExchangeRate int64 `json:"exchangeRate"` // Exchange rate for USD to BEN conversion (3 decimal places)
 }
 
 const PLAYER string = "PLAYER"
@@ -20,31 +20,32 @@ const TRANSACTION string = "TRANS"
 
 // InitLedger adds a base set of players to the ledger
 func (c *CurrencyContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
+	// Set default exchange rate (1.0 with 3 decimal places = 1000)
+	c.ExchangeRate = 1000
 
-	err := c.CreatePlayer(ctx, "player1")
-	err = c.CreatePlayer(ctx, "player2")
-	err = c.CreatePlayer(ctx, "player3")
-
-	if err != nil {
-		return err
+	for i := 1; i <= 3; i++ {
+		err := c.CreatePlayer(ctx, int64(i))
+		if err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
 // CreatePlayer adds a new player to the ledger, and initialize it
-func (c *CurrencyContract) CreatePlayer(ctx contractapi.TransactionContextInterface, id string) error {
+func (c *CurrencyContract) CreatePlayer(ctx contractapi.TransactionContextInterface, id int64) error {
 	exists, err := c.PlayerExists(ctx, id)
 	if err != nil {
 		return err
 	}
 	if exists {
-		return fmt.Errorf("the player %s already exists", id)
+		return fmt.Errorf("the player %d already exists", id)
 	}
 
 	player := types.Player{
-		ID: id,
-		Balance: 0,
+		ID:         id,
+		Balance:    0,
+		UsdBalance: 0,
 	}
 
 	// Marshal Player to JSON
@@ -53,8 +54,7 @@ func (c *CurrencyContract) CreatePlayer(ctx contractapi.TransactionContextInterf
 		return err
 	}
 
-	// TODO: helper function
-	player_key, err := ctx.GetStub().CreateCompositeKey(PLAYER, []string{player.ID})
+	player_key, err := ctx.GetStub().CreateCompositeKey(PLAYER, []string{fmt.Sprintf("%d", id)})
 	if err != nil {
 		return err
 	}
@@ -64,9 +64,8 @@ func (c *CurrencyContract) CreatePlayer(ctx contractapi.TransactionContextInterf
 }
 
 // PlayerExists returns true if a player with the given ID exists in the ledger
-func (c *CurrencyContract) PlayerExists(ctx contractapi.TransactionContextInterface, id string) (bool, error) {
-	// TODO: helper function
-	player_key, err := ctx.GetStub().CreateCompositeKey(PLAYER, []string{id})
+func (c *CurrencyContract) PlayerExists(ctx contractapi.TransactionContextInterface, id int64) (bool, error) {
+	player_key, err := ctx.GetStub().CreateCompositeKey(PLAYER, []string{fmt.Sprintf("%d", id)})
 	if err != nil {
 		return false, err
 	}
@@ -78,17 +77,47 @@ func (c *CurrencyContract) PlayerExists(ctx contractapi.TransactionContextInterf
 	return playerJSON != nil, nil
 }
 
-// RecordBankTransaction records a new bank transaction to the ledger.
-func (c *CurrencyContract) RecordBankTransaction(ctx contractapi.TransactionContextInterface, userID, amountUSDStr, transactionID string) error {
-	amountUSD, err := strconv.ParseFloat(amountUSDStr, 64);
-
+// GetPlayer retrieves a player from the ledger
+func (c *CurrencyContract) GetPlayer(ctx contractapi.TransactionContextInterface, id int64) (*types.Player, error) {
+	player_key, err := ctx.GetStub().CreateCompositeKey(PLAYER, []string{fmt.Sprintf("%d", id)})
 	if err != nil {
-		return fmt.Errorf("invalid amountUSD: %s", err)
+		return nil, err
+	}
+
+	playerJSON, err := ctx.GetStub().GetState(player_key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from world state: %v", err)
+	}
+	if playerJSON == nil {
+		return nil, fmt.Errorf("player %d does not exist", id)
+	}
+
+	var player types.Player
+	err = json.Unmarshal(playerJSON, &player)
+	if err != nil {
+		return nil, err
+	}
+
+	return &player, nil
+}
+
+// RecordBankTransaction records a new bank transaction to the ledger.
+func (c *CurrencyContract) RecordBankTransaction(ctx contractapi.TransactionContextInterface, userID, amountUSD, transactionID int64) error {
+	// Validate transaction (in a real system, this would verify the bank transaction)
+	fmt.Printf("Validating bank transaction ID: %d for user: %d with amount: %d\n", transactionID, userID, amountUSD)
+
+	// Check if player exists
+	exists, err := c.PlayerExists(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("player %d does not exist", userID)
 	}
 
 	transaction := types.BankTransaction{
-		UserID:       userID,
-		AmountUSD:    amountUSD,
+		UserID:        userID,
+		AmountUSD:     amountUSD,
 		TransactionID: transactionID,
 	}
 
@@ -97,79 +126,97 @@ func (c *CurrencyContract) RecordBankTransaction(ctx contractapi.TransactionCont
 		return err
 	}
 
-	// TODO: helper function
-	transaction_key, err := ctx.GetStub().CreateCompositeKey(TRANSACTION, []string{transactionID})
+	transaction_key, err := ctx.GetStub().CreateCompositeKey(TRANSACTION, []string{fmt.Sprintf("%d", transactionID)})
 	if err != nil {
 		return err
 	}
 
-	return ctx.GetStub().PutState(transaction_key, transactionJSON)
-}
-
-// ExchangeInGameCurrency allows users to exchange their USD to in-game currency.
-func (c *CurrencyContract) ExchangeInGameCurrency(ctx contractapi.TransactionContextInterface, userID, transactionID, exchangeRateStr string) error {
-	exchangeRate, err := strconv.ParseFloat(exchangeRateStr, 64);
-
-	if err != nil {
-		return fmt.Errorf("invalid amountUSD: %s", err)
-	}
-
-	// TODO: helper function
-	transaction_key, err := ctx.GetStub().CreateCompositeKey(TRANSACTION, []string{transactionID})
+	// Store the transaction
+	err = ctx.GetStub().PutState(transaction_key, transactionJSON)
 	if err != nil {
 		return err
 	}
 
-	transactionJSON, err := ctx.GetStub().GetState(transaction_key)
-	if err != nil {
-		return fmt.Errorf("failed to get bank transaction: %v", err)
-	}
-	if transactionJSON == nil {
-		return fmt.Errorf("bank transaction not found")
-	}
-
-	var transaction types.BankTransaction
-	err = json.Unmarshal(transactionJSON, &transaction)
+	// Update the player's USD balance
+	player, err := c.GetPlayer(ctx, userID)
 	if err != nil {
 		return err
 	}
 
-	if transaction.UserID != userID {
-		return fmt.Errorf("user unmatch! please only use the transaction record with your own id to exchange!")
-	}
-
-	// TODO: helper function
-	player_key, err := ctx.GetStub().CreateCompositeKey(PLAYER, []string{userID})
-	if err != nil {
-		return err
-	}
-
-	// Retrieve the user's current balance.
-	playerJSON, err := ctx.GetStub().GetState(player_key)
-	if err != nil {
-		return fmt.Errorf("failed to get user %s: %v", transaction.UserID, err)
-	}
-	if playerJSON == nil {
-		return fmt.Errorf("user not found")
-	}
-
-	var player types.Player
-	err = json.Unmarshal(playerJSON, &player)
-	if err != nil {
-		return err
-	}
-
-	// Calculate the equivalent in-game currency and update the player's balance.
-	inGameCurrency := transaction.AmountUSD * exchangeRate
-	player.Balance += inGameCurrency
+	// Increase USD balance
+	player.UsdBalance += amountUSD
 
 	updatedPlayerJSON, err := json.Marshal(player)
 	if err != nil {
 		return err
 	}
 
-	// Update the player's balance in the ledger.
+	player_key, err := ctx.GetStub().CreateCompositeKey(PLAYER, []string{fmt.Sprintf("%d", userID)})
+	if err != nil {
+		return err
+	}
+
 	return ctx.GetStub().PutState(player_key, updatedPlayerJSON)
+}
+
+// ExchangeInGameCurrency allows users to exchange currency (USD to BEN or BEN to USD).
+func (c *CurrencyContract) ExchangeInGameCurrency(ctx contractapi.TransactionContextInterface, userID, benAmountChange int64) error {
+	// Get player
+	player, err := c.GetPlayer(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// Positive benAmountChange means converting USD to BEN
+	// Negative benAmountChange means converting BEN to USD
+	if benAmountChange > 0 {
+		// Converting USD to BEN, calculate required USD
+		// BEN = USD * Rate, so USD = BEN / Rate
+		usdRequired := (benAmountChange * 1000) / c.ExchangeRate
+
+		// Check if player has enough USD
+		if player.UsdBalance < usdRequired {
+			return fmt.Errorf("insufficient USD balance: have %d, need %d", player.UsdBalance, usdRequired)
+		}
+
+		// Deduct USD and add BEN
+		player.UsdBalance -= usdRequired
+		player.Balance += benAmountChange
+	} else {
+		// Convert BEN to USD
+		benToExchange := -benAmountChange // Make positive
+
+		// Check if player has enough BEN
+		if player.Balance < benToExchange {
+			return fmt.Errorf("insufficient BEN balance: have %d, need %d", player.Balance, benToExchange)
+		}
+
+		// Calculate USD to add
+		usdToAdd := (benToExchange * c.ExchangeRate) / 1000
+
+		// Add USD and deduct BEN
+		player.UsdBalance += usdToAdd
+		player.Balance -= benToExchange
+	}
+
+	// Update the player in the ledger
+	updatedPlayerJSON, err := json.Marshal(player)
+	if err != nil {
+		return err
+	}
+
+	player_key, err := ctx.GetStub().CreateCompositeKey(PLAYER, []string{fmt.Sprintf("%d", userID)})
+	if err != nil {
+		return err
+	}
+
+	return ctx.GetStub().PutState(player_key, updatedPlayerJSON)
+}
+
+// SetExchangeRate sets the exchange rate for USD to BEN conversion
+func (c *CurrencyContract) SetExchangeRate(ctx contractapi.TransactionContextInterface, newRate int64) error {
+	c.ExchangeRate = newRate
+	return nil
 }
 
 func (c *CurrencyContract) GetAllPlayers(ctx contractapi.TransactionContextInterface) ([]*types.Player, error) {

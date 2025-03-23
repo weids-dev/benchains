@@ -504,19 +504,23 @@ func TestProofMerkleCircuit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to compile circuit: %v", err)
 	}
+	compileTime := time.Since(start)
 
+	start = time.Now()
 	// Step 7: Setup proving/verifying keys
 	pk, vk, err := groth16.Setup(ccs)
 	if err != nil {
 		t.Fatalf("Failed to setup keys: %v", err)
 	}
+	setupTime := time.Since(start)
 
+	start = time.Now()
 	// Step 8: Generate proof and measure time
 	fullWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Fatalf("Failed to create full witness: %v", err)
 	}
-	compileTime := time.Since(start)
+	witnessTime := time.Since(start)
 
 	start = time.Now()
 	proof, err := groth16.Prove(ccs, pk, fullWitness)
@@ -537,5 +541,5 @@ func TestProofMerkleCircuit(t *testing.T) {
 	}
 	verifyTime := time.Since(start)
 
-	t.Logf("ProofMerkleCircuit: Depth=%d, Leaves=%d, Batch Size=%d, Proof Generation Time=%v, Verification Time=%v, Preparation Time=%v, Compile Time=%v", D2, N2, B2, proofTime, verifyTime, prepareTime, compileTime)
+	t.Logf("ProofMerkleCircuit: Depth=%d, Leaves=%d, Batch Size=%d, Proof Generation Time=%v, Verification Time=%v, Preparation Time=%v, Compile Time=%v, Witness Time=%v, Setup Time=%v", D2, N2, B2, proofTime, verifyTime, prepareTime, compileTime, witnessTime, setupTime)
 }
