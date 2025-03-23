@@ -3,7 +3,7 @@ package wrappers
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -54,53 +54,53 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		return
 	}
-	defer wp.Close()
 
-	m.Run()
-}
-
-func TestInit(t *testing.T) {
-	// Check if Gw1 is initialized
 	if wp.Gw1 == nil {
-		t.Errorf("Gw1 is not initialized")
+		log.Fatalf("Gw1 is not initialized")
 	}
 
 	// Check if Gw2 is initialized
 	if wp.Gw2 == nil {
-		t.Errorf("Gw2 is not initialized")
+		log.Fatalf("Gw2 is not initialized")
 	}
 
 	// Check if UserStates is empty
 	if len(wp.UserStates) != 0 {
-		t.Errorf("Expected UserStates to be empty, got %d", len(wp.UserStates))
+		log.Fatalf("Expected UserStates to be empty, got %d", len(wp.UserStates))
 	} else {
-		t.Logf("UserStates initialized as empty")
+		log.Printf("UserStates initialized as empty")
 	}
 
 	if err := wp.Gw2.InitLedger(); err != nil {
-		t.Fatalf("InitLedger failed: %v\n", err)
+		log.Fatalf("InitLedger failed: %v\n", err)
 	}
 
-	allPlayers, err := wp.Gw2.GetAllPlayers()
+	evaluateResult, err := wp.Gw2.Contract.EvaluateTransaction("CurrencyContract:GetAllPlayers")
 	if err != nil {
-		t.Fatalf("GetAllPlayers failed: %v\n", err)
+		log.Fatalf("GetAllPlayers failed: %v\n", err)
 	}
-	fmt.Println("All Players:", allPlayers)
-}
+	log.Printf("EvaluateResult Players: %v", evaluateResult)
 
-// TestSimulateTransactions tests the operator by simulating transactions and observing the output.
-func TestSimulateTransactions(t *testing.T) {
-	// Create a context with a 30-second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+
+	time.Sleep(1 * time.Second)
 
 	// Run Operate in a goroutine
 	go func() {
 		if err := wp.Operate(ctx); err != nil {
-			t.Errorf("Operate failed: %v", err)
+			log.Fatalf("Operate failed: %v", err)
 		}
 	}()
 
+	defer wp.Close()
+	m.Run()
+
+	<-ctx.Done()
+}
+
+// TestSimulateTransactions tests the operator by simulating transactions and observing the output.
+func TestSimulateTransactions(t *testing.T) {
 	// Wait briefly to ensure Operate starts
 	time.Sleep(1 * time.Second)
 
@@ -120,25 +120,10 @@ func TestSimulateTransactions(t *testing.T) {
 	exchangeInGameCurrency(contract, "4", "-20.0")
 
 	// Wait for the context to timeout, giving Operate time to process blocks
-	<-ctx.Done()
 }
 
 // TestExchangeRateChanges tests the effect of changing the exchange rate.
 func TestExchangeRateChanges(t *testing.T) {
-	// Skip if not running extensive tests
-	// t.Skip("Skipping exchange rate test - run with -test.run=ExchangeRateChanges to execute")
-
-	// Create a context with a 30-second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Run Operate in a goroutine
-	go func() {
-		if err := wp.Operate(ctx); err != nil {
-			t.Errorf("Operate failed: %v", err)
-		}
-	}()
-
 	// Wait briefly to ensure Operate starts
 	time.Sleep(1 * time.Second)
 
@@ -161,7 +146,4 @@ func TestExchangeRateChanges(t *testing.T) {
 
 	// Exchange another 100 BEN at the new rate (should cost less USD)
 	exchangeInGameCurrency(contract, "5", "100.0")
-
-	// Wait for the context to timeout
-	<-ctx.Done()
 }

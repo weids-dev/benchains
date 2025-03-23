@@ -7,6 +7,7 @@ import (
 
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/weids-dev/benchains/chaincodes/wrappers/types"
@@ -50,6 +51,40 @@ func (m *MockTransactionContext) GetStub() shim.ChaincodeStubInterface {
 func (ms *MockStub) CreateCompositeKey(objectType string, attributes []string) (string, error) {
 	args := ms.Called(objectType, attributes)
 	return args.String(0), args.Error(1)
+}
+
+// MockStateIterator is a mock of StateQueryIteratorInterface
+type MockStateIterator struct {
+	mock.Mock
+	shim.StateQueryIteratorInterface
+	Results []*queryresult.KV
+	Index   int
+}
+
+// HasNext mocks the HasNext method
+func (msi *MockStateIterator) HasNext() bool {
+	return msi.Index < len(msi.Results)
+}
+
+// Next mocks the Next method
+func (msi *MockStateIterator) Next() (*queryresult.KV, error) {
+	if msi.Index < len(msi.Results) {
+		result := msi.Results[msi.Index]
+		msi.Index++
+		return result, nil
+	}
+	return nil, fmt.Errorf("no more results")
+}
+
+// Close mocks the Close method
+func (msi *MockStateIterator) Close() error {
+	return nil
+}
+
+// GetStateByPartialCompositeKey mocks the method for getting state by partial composite key
+func (ms *MockStub) GetStateByPartialCompositeKey(objectType string, keys []string) (shim.StateQueryIteratorInterface, error) {
+	args := ms.Called(objectType, keys)
+	return args.Get(0).(shim.StateQueryIteratorInterface), args.Error(1)
 }
 
 // TestInitLedger tests the InitLedger function for success
@@ -220,5 +255,72 @@ func TestExchangeInGameCurrency(t *testing.T) {
 
 	// Assert that PutState was called once with the expected arguments
 	stub.AssertNumberOfCalls(t, "PutState", 1)
+	stub.AssertExpectations(t)
+}
+
+// TestGetAllPlayers tests the GetAllPlayers function
+func TestGetAllPlayers(t *testing.T) {
+	ctx := new(MockTransactionContext)
+	stub := new(MockStub)
+	ctx.On("GetStub").Return(stub)
+
+	cc := new(CurrencyContract)
+
+	// Create sample player data
+	players := []*types.Player{
+		{ID: 10, Balance: 1000, UsdBalance: 5000},
+		{ID: 11, Balance: 2000, UsdBalance: 7000},
+		{ID: 12, Balance: 3000, UsdBalance: 9000},
+	}
+
+	// Create KV results for the iterator
+	var results []*queryresult.KV
+	for _, player := range players {
+		// Create composite key for each player
+		playerKey := "PLAYER_" + fmt.Sprintf("%d", player.ID)
+		playerJSON, _ := json.Marshal(player)
+
+		// Create KV pair
+		kv := &queryresult.KV{
+			Key:   playerKey,
+			Value: playerJSON,
+		}
+		results = append(results, kv)
+	}
+
+	// Create and configure the iterator
+	iterator := &MockStateIterator{
+		Results: results,
+		Index:   0,
+	}
+
+	// Mock GetStateByPartialCompositeKey to return our iterator
+	stub.On("GetStateByPartialCompositeKey", PLAYER, []string{}).Return(iterator, nil)
+
+	// Call GetAllPlayers
+	returnedPlayers, err := cc.GetAllPlayers(ctx)
+	if err != nil {
+		t.Errorf("GetAllPlayers failed with error: %s", err)
+	}
+
+	// Verify the results
+	if len(returnedPlayers) != len(players) {
+		t.Errorf("Expected %d players, got %d", len(players), len(returnedPlayers))
+	}
+
+	// Compare each player
+	for i, player := range players {
+		t.Logf("Player %d: Expected ID %d, got %d", i, player.ID, returnedPlayers[i].ID)
+		if returnedPlayers[i].ID != player.ID {
+			t.Errorf("Player %d: Expected ID %d, got %d", i, player.ID, returnedPlayers[i].ID)
+		}
+		if returnedPlayers[i].Balance != player.Balance {
+			t.Errorf("Player %d: Expected Balance %d, got %d", i, player.Balance, returnedPlayers[i].Balance)
+		}
+		if returnedPlayers[i].UsdBalance != player.UsdBalance {
+			t.Errorf("Player %d: Expected UsdBalance %d, got %d", i, player.UsdBalance, returnedPlayers[i].UsdBalance)
+		}
+	}
+
 	stub.AssertExpectations(t)
 }

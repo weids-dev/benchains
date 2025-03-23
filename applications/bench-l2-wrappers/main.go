@@ -329,8 +329,8 @@ func main() {
 				continue
 			}
 
-			fmt.Printf("Newest block number: ", newestBlockNumber)
-			fmt.Printf(" || Newest committed block number: %s \n", newestCommittedBlockNumber)
+			fmt.Printf("Newest block number: %d\n", newestBlockNumber)
+			fmt.Printf("Newest committed block number: %d\n", newestCommittedBlockNumber)
 
 			// Step 2: Check if there are new blocks to process
 			if newestBlockNumber > newestCommittedBlockNumber {
@@ -350,11 +350,6 @@ func main() {
 					transactions, err := extractTransactions(block)
 					if err != nil {
 						fmt.Println("Error extracting transactions:", err)
-						continue
-					}
-
-					if err != nil {
-						fmt.Println("Error extracting transaction:", err)
 						continue
 					}
 

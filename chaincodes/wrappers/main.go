@@ -5,8 +5,8 @@ import (
 
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 
-	"github.com/weids-dev/benchains/chaincodes/wrappers/plasma"
 	"github.com/weids-dev/benchains/chaincodes/wrappers/currency"
+	"github.com/weids-dev/benchains/chaincodes/wrappers/plasma"
 )
 
 func main() {

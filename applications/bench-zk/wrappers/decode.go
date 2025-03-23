@@ -206,7 +206,7 @@ func extractTransaction(payload map[string]interface{}) ([]string, error) {
 			fmt.Println("Error: Input Args 8")
 		}
 
-		fmt.Printf("Input Args: %s\n", iargs)
+		// fmt.Printf("Input Args: %s\n", iargs)
 		for _, iarg := range iargs {
 			arg, ok := iarg.(string)
 			if !ok {

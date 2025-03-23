@@ -19,6 +19,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+type Player struct {
+	ID         int64 `json:"id"`         // ID is the player's unique identifier.
+	Balance    int64 `json:"balance"`    // Balance tracks the BEN currency (3 decimal places)
+	UsdBalance int64 `json:"usdBalance"` // UsdBalance tracks USD available for exchange
+}
+
 // Gateway encapsulates all the resources needed to interact with the Fabric network.
 type Gateway struct {
 	ClientConnection *grpc.ClientConn
@@ -39,12 +45,6 @@ type Chain struct {
 	GatewayPeer   string
 	ChannelName   string
 	ChaincodeName string
-}
-
-// Player is a placeholder struct matching the data on the ledger
-type Player struct {
-	ID      string  `json:"ID"`
-	Balance float64 `json:"balance"` // Balance tracks the currency the player has.
 }
 
 // NewGateway initializes a new Gateway instance, similar to what your main() function was doing.

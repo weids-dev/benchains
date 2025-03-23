@@ -21,12 +21,11 @@ import (
 // The Operator will use Deposit root as input to generate proof for depositTransaction
 type Wrappers struct {
 	UserStates     []merkle.UserState
-	Transactions   []merkle.TransactionData
 	StateRoots     []string         // set of intermediate states between each transactions
 	StateProofs    []merkle.MProof  // each Merkle proof to show that the state is exactly in the tree root
 	Gw1            *gateway.Gateway // Gw1 represents the way operator communicate with Layer 1
 	Gw2            *gateway.Gateway // Gw2 represents the way operator communicate with Layer 2
-	LatestRoot     string           // The latest root committed to Layer 1
+	LatestRoot     int64            // The latest root committed to Layer 1
 	LatestRootHash string           // The latest root hash committed to Layer 1
 }
 
@@ -51,12 +50,11 @@ func NewWrappers(chain1, chain2 gateway.Chain) (*Wrappers, error) {
 	// Initialize Wrappers with empty UserStates and Deposits
 	return &Wrappers{
 		UserStates:     []merkle.UserState{},
-		Transactions:   []merkle.TransactionData{},
 		StateRoots:     []string{},        // set of intermediate states between each transactions
 		StateProofs:    []merkle.MProof{}, // each Merkle proof to show that the state is exactly in the tree root.
 		Gw1:            gw1,
 		Gw2:            gw2,
-		LatestRoot:     "",
+		LatestRoot:     0,
 		LatestRootHash: "",
 	}, nil
 }
@@ -109,35 +107,40 @@ func (w *Wrappers) Operate(ctx context.Context) error {
 						continue
 					}
 
-					w.Transactions, err = extractTransactions(block)
+					transactions, err := extractTransactions(block)
 					if err != nil {
 						fmt.Println("Error extracting transactions:", err)
 						continue
 					}
 
-					// Pretty print the extracted transactions
-					for _, tx := range w.Transactions {
-						log.Printf("TxID: %s", tx.TxID)
-						for i, arg := range tx.Args {
-							log.Printf("  Arg %d: %+v", i, arg)
+					/*
+						// Pretty print the extracted transactions
+						for _, tx := range transactions {
+							log.Printf("TxID: %s", tx.TxID)
+							for i, arg := range tx.Args {
+								log.Printf("  Arg %d: %+v", i, arg)
+							}
 						}
-					}
-					fmt.Printf("Number of transactions in this block: %d   || ", len(w.Transactions))
+					*/
+
+					fmt.Printf("Number of transactions in this block: %d   || ", len(transactions))
 
 					// Process transactions before computing Merkle root
-					err = w.processTransactions(w.Transactions, blockNumber)
+					err = w.processTransactions(transactions, blockNumber)
 					if err != nil {
 						fmt.Printf("Error processing transactions: %v\n", err)
 						continue
 					}
 
-					// Step 4: Compute the Merkle root using the merkle package
-					transactionRoot := merkle.BuildMerkleTransactions(w.Transactions)
-					merkleRoot := merkle.MerkleRootToBase64(transactionRoot)
+					/*
+						// Step 4: Compute the Merkle root using the merkle package
+						transactionRoot := merkle.BuildMerkleTransactions(transactions)
+						merkleRoot := merkle.MerkleRootToBase64(transactionRoot)
 
-					// Step 5: Commit the Merkle root to Layer 1
-					go commitMerkleRoot(w.Gw1.Contract, snum, merkleRoot)
-					fmt.Printf("Committed Merkle root for block %d: %s\n", blockNumber, merkleRoot)
+						// Step 5: Commit the Merkle root to Layer 1
+						go commitMerkleRoot(w.Gw1.Contract, snum, merkleRoot)
+						fmt.Printf("Committed Merkle root for block %d: %s\n", blockNumber, merkleRoot)
+					*/
 				}
 				newestCommittedBlockNumber = newestBlockNumber
 			}
@@ -152,9 +155,51 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, bl
 
 	// If this is the first transaction block, initialize our state
 	if len(w.UserStates) == 0 {
-		// Initialize with dummy user states up to 2^D2 (Merkle tree capacity)
+		// First try to get existing players from the blockchain
+		log.Println("Initializing user states from blockchain...")
+
+		// Call GetAllPlayers using the correct chaincode name from configuration
+		currencyContract := w.Gw2.Gateway.GetNetwork(w.Gw2.ChannelName).GetContract(w.Gw2.ChaincodeName)
+		evaluateResult, err := currencyContract.EvaluateTransaction("CurrencyContract:GetAllPlayers")
+		if err != nil {
+			log.Printf("Error getting players from blockchain: %v", err)
+			// Continue with empty array if we can't get players
+		}
+
+		// Unmarshal the JSON bytes into a slice of player structs
+		var players []*gateway.Player
+		if len(evaluateResult) > 0 {
+			if err := json.Unmarshal(evaluateResult, &players); err != nil {
+				log.Printf("Failed to unmarshal players: %v", err)
+				// Try direct string conversion as a fallback
+				playersStr := string(evaluateResult)
+				if err := json.Unmarshal([]byte(playersStr), &players); err != nil {
+					log.Printf("Failed again to unmarshal players: %v", err)
+				}
+			}
+		}
+
+		// Initialize user states with existing players first
+		log.Printf("Found %d existing players in blockchain", len(players))
+		existingPlayerCount := len(players)
+
+		// Add existing players to UserStates
+		for _, player := range players {
+			// Convert float64 balance to int64 (assuming 3 decimal places)
+			balanceInt := int64(player.Balance * 1000)
+
+			nameInt := big.NewInt(player.ID)
+			benInt := big.NewInt(balanceInt)
+			log.Printf("Find Existing Player ID: %d, Balance: %d", player.ID, balanceInt)
+			w.UserStates = append(w.UserStates, merkle.UserState{
+				Name: nameInt,
+				Ben:  benInt,
+			})
+		}
+
+		// Fill remaining slots with dummy users
 		maxUsers := 1 << circuit.D2 // 2^10 = 1024 users
-		for i := 0; i < maxUsers; i++ {
+		for i := existingPlayerCount; i < maxUsers; i++ {
 			nameInt := big.NewInt(int64(i))
 			benInt := big.NewInt(0)
 			w.UserStates = append(w.UserStates, merkle.UserState{
@@ -162,14 +207,17 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, bl
 				Ben:  benInt,
 			})
 		}
+
 		// Generate the initial Merkle root
 		initialRoot := merkle.BuildMerkleStates(w.UserStates)
-		w.LatestRoot = merkle.MerkleRootToBase64(initialRoot)
-		w.LatestRootHash = w.LatestRoot
-		log.Printf("Initialized state with %d users, root: %s", maxUsers, w.LatestRoot)
+		// LatestRoot is the block number of the initial root
+		w.LatestRoot = 0
+		w.LatestRootHash = merkle.MerkleRootToBase64(initialRoot)
+		log.Printf("Initialized state with %d users (%d existing, %d dummy), root: %s",
+			maxUsers, existingPlayerCount, maxUsers-existingPlayerCount, w.LatestRootHash)
 	}
 
-	oldRoot := w.LatestRootHash
+	// oldRoot := w.LatestRootHash
 
 	// Process each transaction in the block
 	for i, tx := range transactions {
@@ -309,12 +357,6 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, bl
 		default:
 			log.Printf("Unknown contract method: %s", contractMethod)
 		}
-	}
-
-	// If the root has changed, update LatestRoot
-	if oldRoot != w.LatestRootHash {
-		w.LatestRoot = w.LatestRootHash
-		log.Printf("Updated Merkle root: %s", w.LatestRoot)
 	}
 
 	return nil
