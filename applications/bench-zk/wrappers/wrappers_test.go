@@ -84,14 +84,15 @@ func TestMain(m *testing.M) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	time.Sleep(1 * time.Second)
-
 	// Run Operate in a goroutine
 	go func() {
 		if err := wp.Operate(ctx); err != nil {
 			log.Fatalf("Operate failed: %v", err)
 		}
 	}()
+
+	// Wait for 10 seconds to ensure Operate is running
+	time.Sleep(10 * time.Second)
 
 	defer wp.Close()
 	m.Run()

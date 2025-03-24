@@ -126,7 +126,7 @@ func TestUserStateCircuit(t *testing.T) {
 	// Step 3: Compute the old Merkle root
 	oldRoot := utils.ComputeMiMC(H_A, H_B)
 
-	// Step 4: Update user A’s state (e.g., increase balance by 50)
+	// Step 4: Update user A's state (e.g., increase balance by 50)
 	userAUpdated := merkle.UserState{Name: big.NewInt(1), Ben: big.NewInt(150)}
 
 	// Step 5: Generate Merkle proof for user A and compute new root
@@ -251,7 +251,7 @@ func TestMerkleCircuit(t *testing.T) {
 		t.Fatalf("Failed to generate Merkle proof for user %d: %v", userIndex+1, err)
 	}
 
-	// Step 4: Update user 2’s state (deposit 20 BEN)
+	// Step 4: Update user 2's state (deposit 20 BEN)
 	newUser := merkle.UserState{
 		Name: oldUser.Name,
 		Ben:  new(big.Int).Add(oldUser.Ben, big.NewInt(20)), // 100 + 20 = 120 BEN
@@ -485,7 +485,7 @@ func TestProofMerkleCircuit(t *testing.T) {
 		assignment.Transactions[k].OldName = tx.OldState.Name
 		assignment.Transactions[k].OldBalance = tx.OldState.Ben
 		assignment.Transactions[k].NewName = tx.NewState.Name
-		assignment.Transactions[k].NewBalance = tx.NewState.Ben
+		assignment.Transactions[k].BenChange = tx.DepositAmount // Use DepositAmount as BenChange instead of NewBalance
 		for i := 0; i < D2; i++ {
 			assignment.Transactions[k].Siblings[i] = tx.Proof.Siblings[i]
 			if tx.Proof.PathBits[i] {

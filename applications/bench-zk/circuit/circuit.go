@@ -51,7 +51,7 @@ type DepositCircuit struct {
 
 // UserStateCircuit verifies the update of a user's state in a two-user Merkle tree.
 // It ensures that the old and new Merkle roots are correctly computed based on the
-// user’s state transition and the unchanged sibling’s hash.
+// user's state transition and the unchanged sibling's hash.
 type UserStateCircuit struct {
 	// Public inputs
 	OldRoot frontend.Variable `gnark:"oldRoot,public"`
@@ -130,7 +130,7 @@ type ProofMerkleCircuit struct {
 		OldName    frontend.Variable     `gnark:"oldName"`
 		OldBalance frontend.Variable     `gnark:"oldBalance"`
 		NewName    frontend.Variable     `gnark:"newName"`
-		NewBalance frontend.Variable     `gnark:"newBalance"`
+		BenChange  frontend.Variable     `gnark:"benChange"` // Changed from NewBalance
 		Siblings   [D2]frontend.Variable `gnark:"siblings"`
 		PathBits   [D2]frontend.Variable `gnark:"pathBits"`
 	}
@@ -165,12 +165,15 @@ func (c *ProofMerkleCircuit) Define(api frontend.API) error {
 		}
 		ComputedOldRoot_k := currentHash
 
+		// Calculate NewBalance inside the circuit by adding OldBalance and BenChange
+		NewBalance := api.Add(tx.OldBalance, tx.BenChange)
+
 		// Compute new leaf hash: H_new_k = MiMC(NewName, NewBalance)
 		mimcNew, err := mimc.NewMiMC(api)
 		if err != nil {
 			return err
 		}
-		mimcNew.Write(tx.NewName, tx.NewBalance)
+		mimcNew.Write(tx.NewName, NewBalance)
 		H_new_k := mimcNew.Sum()
 
 		// Compute new root from H_new_k and the same Merkle proof

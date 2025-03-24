@@ -36,6 +36,37 @@ type TransactionData struct {
 }
 
 // --------------------------------------------------------------------------------
+// Base64 conversion helper functions
+// --------------------------------------------------------------------------------
+
+// Base64ToBytes decodes a base64 string to its byte representation
+func Base64ToBytes(encoded string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(encoded)
+}
+
+// BytesToBase64 encodes a byte slice to base64
+func BytesToBase64(data []byte) string {
+	return base64.StdEncoding.EncodeToString(data)
+}
+
+// BigIntToBase64 converts a big.Int to a base64 string
+func BigIntToBase64(n *big.Int) string {
+	if n == nil {
+		return ""
+	}
+	return BytesToBase64(n.Bytes())
+}
+
+// Base64ToBigInt converts a base64 string to a big.Int
+func Base64ToBigInt(encoded string) (*big.Int, error) {
+	data, err := Base64ToBytes(encoded)
+	if err != nil {
+		return nil, err
+	}
+	return new(big.Int).SetBytes(data), nil
+}
+
+// --------------------------------------------------------------------------------
 // Helper function: HashUserState
 //
 // Hashes a single user state (Name + Balance) into a field element using MiMC_BN254
@@ -78,7 +109,7 @@ func HashTransactionData(tx TransactionData) *big.Int {
 	txIDBytes := []byte(tx.TxID)
 	_, _ = hasher.Write(txIDBytes)
 
-	// 2) Write each argument’s bytes
+	// 2) Write each argument's bytes
 	for _, arg := range tx.Args {
 		argBytes := []byte(arg)
 		_, _ = hasher.Write(argBytes)

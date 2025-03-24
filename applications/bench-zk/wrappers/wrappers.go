@@ -14,19 +14,41 @@ import (
 	"bench-zk/gateway"
 	"bench-zk/merkle"
 
+	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/constraint"
+	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 )
 
 // The Operator wiil use UserState root as input to generate proof for exchangeBen
 // The Operator will use Deposit root as input to generate proof for depositTransaction
 type Wrappers struct {
-	UserStates     []merkle.UserState
-	StateRoots     []string         // set of intermediate states between each transactions
-	StateProofs    []merkle.MProof  // each Merkle proof to show that the state is exactly in the tree root
-	Gw1            *gateway.Gateway // Gw1 represents the way operator communicate with Layer 1
-	Gw2            *gateway.Gateway // Gw2 represents the way operator communicate with Layer 2
-	LatestRoot     int64            // The latest root committed to Layer 1
-	LatestRootHash string           // The latest root hash committed to Layer 1
+	UserStates        []merkle.UserState
+	StateRoots        []string                 // set of intermediate states between each transactions
+	StateProofs       []merkle.MProof          // each Merkle proof to show that the state is exactly in the tree root
+	Gw1               *gateway.Gateway         // Gw1 represents the way operator communicate with Layer 1
+	Gw2               *gateway.Gateway         // Gw2 represents the way operator communicate with Layer 2
+	LatestRoot        int64                    // The latest root committed to Layer 1
+	LatestRootHash    string                   // The latest root hash committed to Layer 1
+	BlockTransactions []merkle.TransactionData // Store transactions for current block
+	DummyUserIndex    int                      // Index of the next available dummy user slot
+
+	// ZK circuit related fields
+	ProofCircuit        *circuit.ProofMerkleCircuit // The circuit for generating proofs
+	CircuitR1CS         constraint.ConstraintSystem // Compiled circuit
+	ProvingKey          interface{}                 // Proving key for the circuit
+	VerifyingKey        interface{}                 // Verifying key for the circuit
+	Initialized         bool                        // Flag to track if circuit is initialized
+	CircuitTransactions []struct {                  // Pre-prepared transaction data for the circuit
+		OldName    *big.Int
+		OldBalance *big.Int
+		NewName    *big.Int
+		BenChange  *big.Int
+		Siblings   []*big.Int
+		PathBits   []bool
+	}
 }
 
 // NewWrappers initializes a new Wrappers instance.
@@ -45,17 +67,52 @@ func NewWrappers(chain1, chain2 gateway.Chain) (*Wrappers, error) {
 		gw1.Close() // Ensure Gw1 is closed if Gw2 initialization fails
 		return nil, fmt.Errorf("failed to initialize Gw2: %w", err)
 	}
-	// TODO: Initialize ZK Circuits
+
+	// Initialize ZK Circuit
+	log.Println("Initializing ZK circuit...")
+	var zkCircuit circuit.ProofMerkleCircuit
+
+	// Compile the circuit to R1CS
+	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &zkCircuit)
+	if err != nil {
+		gw1.Close()
+		gw2.Close()
+		return nil, fmt.Errorf("failed to compile ZK circuit: %w", err)
+	}
+
+	// Setup proving and verifying keys
+	pk, vk, err := groth16.Setup(ccs)
+	if err != nil {
+		gw1.Close()
+		gw2.Close()
+		return nil, fmt.Errorf("failed to setup ZK proving/verifying keys: %w", err)
+	}
+	log.Println("ZK circuit initialized successfully")
 
 	// Initialize Wrappers with empty UserStates and Deposits
 	return &Wrappers{
-		UserStates:     []merkle.UserState{},
-		StateRoots:     []string{},        // set of intermediate states between each transactions
-		StateProofs:    []merkle.MProof{}, // each Merkle proof to show that the state is exactly in the tree root.
-		Gw1:            gw1,
-		Gw2:            gw2,
-		LatestRoot:     0,
-		LatestRootHash: "",
+		UserStates:        []merkle.UserState{},
+		StateRoots:        []string{},        // set of intermediate states between each transactions
+		StateProofs:       []merkle.MProof{}, // each Merkle proof to show that the state is exactly in the tree root.
+		Gw1:               gw1,
+		Gw2:               gw2,
+		LatestRoot:        0,
+		LatestRootHash:    "",
+		BlockTransactions: []merkle.TransactionData{},
+		DummyUserIndex:    0,
+		ProofCircuit:      &zkCircuit,
+		CircuitR1CS:       ccs,
+		ProvingKey:        pk,
+		VerifyingKey:      vk,
+		Initialized:       true,
+		CircuitTransactions: []struct {
+			OldName    *big.Int
+			OldBalance *big.Int
+			NewName    *big.Int
+			BenChange  *big.Int
+			Siblings   []*big.Int
+			PathBits   []bool
+		}{},
 	}, nil
 }
 
@@ -113,34 +170,33 @@ func (w *Wrappers) Operate(ctx context.Context) error {
 						continue
 					}
 
-					/*
-						// Pretty print the extracted transactions
-						for _, tx := range transactions {
-							log.Printf("TxID: %s", tx.TxID)
-							for i, arg := range tx.Args {
-								log.Printf("  Arg %d: %+v", i, arg)
-							}
-						}
-					*/
-
 					fmt.Printf("Number of transactions in this block: %d   || ", len(transactions))
 
+					// Clear block transactions before processing new ones
+					w.BlockTransactions = []merkle.TransactionData{}
+
 					// Process transactions before computing Merkle root
-					err = w.processTransactions(transactions, blockNumber)
+					err = w.processTransactions(transactions)
 					if err != nil {
 						fmt.Printf("Error processing transactions: %v\n", err)
 						continue
 					}
+					// TODO: If there is no transaction that will change the UserStates, skip the proof generation
 
-					/*
-						// Step 4: Compute the Merkle root using the merkle package
-						transactionRoot := merkle.BuildMerkleTransactions(transactions)
-						merkleRoot := merkle.MerkleRootToBase64(transactionRoot)
+					// Generate ZK proof for this block
+					oldRoot, newRoot, proof, err := w.generateZKProof()
+					if err != nil {
+						fmt.Printf("Error generating ZK proof: %v\n", err)
+						continue
+					}
 
-						// Step 5: Commit the Merkle root to Layer 1
-						go commitMerkleRoot(w.Gw1.Contract, snum, merkleRoot)
-						fmt.Printf("Committed Merkle root for block %d: %s\n", blockNumber, merkleRoot)
-					*/
+					log.Printf("Old root: %v, New root: %v", oldRoot, newRoot)
+					log.Printf("Proof: %v", proof)
+
+					// Commit the latest Merkle root with its proof to Layer 1
+
+					// go w.commitRootWithProof(snum, w.LatestRootHash, proof, oldRoot, newRoot)
+					fmt.Printf("Committed Merkle root for block %d: %s with ZK proof\n", blockNumber, w.LatestRootHash)
 				}
 				newestCommittedBlockNumber = newestBlockNumber
 			}
@@ -148,10 +204,152 @@ func (w *Wrappers) Operate(ctx context.Context) error {
 	}
 }
 
-func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, blockNumber uint64) error {
+// generateZKProof generates a ZK proof for the current block's transactions
+func (w *Wrappers) generateZKProof() (*big.Int, *big.Int, []byte, error) {
+	if !w.Initialized {
+		return nil, nil, nil, fmt.Errorf("ZK circuit not initialized")
+	}
+
+	if len(w.StateRoots) < 2 {
+		log.Printf("Possible reason: No transactions that will change the UserStates in this block")
+		return nil, nil, nil, nil
+	}
+
+	oldRootBase64 := w.StateRoots[0]
+	newRootBase64 := w.StateRoots[len(w.StateRoots)-1]
+	log.Printf("Old root: %v, New root: %v", oldRootBase64, newRootBase64)
+
+	oldRootBytes, err := merkle.Base64ToBytes(oldRootBase64)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to decode old root: %w", err)
+	}
+	oldRoot := new(big.Int).SetBytes(oldRootBytes)
+
+	newRootBytes, err := merkle.Base64ToBytes(newRootBase64)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to decode new root: %w", err)
+	}
+	newRoot := new(big.Int).SetBytes(newRootBytes)
+
+	var assignment circuit.ProofMerkleCircuit
+	assignment.OldRoot = oldRoot
+	assignment.NewRoot = newRoot
+
+	txCount := len(w.CircuitTransactions)
+	if txCount > circuit.B2 {
+		txCount = circuit.B2
+	}
+	log.Printf("Generating ZK proof for %d transactions", txCount)
+
+	// Process real transactions
+	for k := 0; k < txCount; k++ {
+		ctxData := w.CircuitTransactions[k]
+		var pathBits [circuit.D2]frontend.Variable
+		for i := 0; i < circuit.D2; i++ {
+			if i < len(ctxData.PathBits) {
+				if ctxData.PathBits[i] {
+					pathBits[i] = big.NewInt(1)
+				} else {
+					pathBits[i] = big.NewInt(0)
+				}
+			} else {
+				pathBits[i] = big.NewInt(0)
+			}
+		}
+		var siblings [circuit.D2]frontend.Variable
+		for i := 0; i < circuit.D2; i++ {
+			if i < len(ctxData.Siblings) {
+				siblings[i] = ctxData.Siblings[i]
+			} else {
+				siblings[i] = big.NewInt(0)
+			}
+		}
+		assignment.Transactions[k].OldName = ctxData.OldName
+		assignment.Transactions[k].OldBalance = ctxData.OldBalance
+		assignment.Transactions[k].NewName = ctxData.NewName
+		assignment.Transactions[k].BenChange = ctxData.BenChange
+		assignment.Transactions[k].Siblings = siblings
+		assignment.Transactions[k].PathBits = pathBits
+	}
+
+	// Fill remaining slots with valid dummy transactions
+	for k := txCount; k < circuit.B2; k++ {
+		// Use leaf index 0 from current state as a dummy
+		dummyIndex := 0
+		oldState := w.UserStates[dummyIndex]
+		oldStateHash := merkle.HashUserState(oldState)
+		proof, err := merkle.GenerateMerkleProof(w.UserStates, oldStateHash)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to generate dummy proof: %w", err)
+		}
+		var pathBits [circuit.D2]frontend.Variable
+		for i := 0; i < circuit.D2; i++ {
+			if i < len(proof.PathBits) {
+				if proof.PathBits[i] {
+					pathBits[i] = big.NewInt(1)
+				} else {
+					pathBits[i] = big.NewInt(0)
+				}
+			} else {
+				pathBits[i] = big.NewInt(0)
+			}
+		}
+		var siblings [circuit.D2]frontend.Variable
+		for i := 0; i < circuit.D2; i++ {
+			if i < len(proof.Siblings) {
+				siblings[i] = proof.Siblings[i]
+			} else {
+				siblings[i] = big.NewInt(0)
+			}
+		}
+		assignment.Transactions[k].OldName = oldState.Name
+		assignment.Transactions[k].OldBalance = oldState.Ben
+		assignment.Transactions[k].NewName = oldState.Name
+		assignment.Transactions[k].BenChange = big.NewInt(0)
+		assignment.Transactions[k].Siblings = siblings
+		assignment.Transactions[k].PathBits = pathBits
+	}
+
+	log.Println("Creating witness for ZK proof...")
+	fullWitness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to create witness: %w", err)
+	}
+
+	log.Println("Generating ZK proof...")
+	start := time.Now()
+	proof, err := groth16.Prove(w.CircuitR1CS, w.ProvingKey.(groth16.ProvingKey), fullWitness)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to generate proof: %w", err)
+	}
+	log.Printf("ZK proof generated in %v", time.Since(start))
+
+	proofBytes, err := serializeProof(proof)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to serialize proof: %w", err)
+	}
+
+	w.StateProofs = []merkle.MProof{}
+	w.StateRoots = []string{newRootBase64}
+	w.CircuitTransactions = []struct {
+		OldName    *big.Int
+		OldBalance *big.Int
+		NewName    *big.Int
+		BenChange  *big.Int
+		Siblings   []*big.Int
+		PathBits   []bool
+	}{}
+
+	return oldRoot, newRoot, proofBytes, nil
+}
+
+func (w *Wrappers) processTransactions(transactions []merkle.TransactionData) error {
 	if len(transactions) == 0 {
 		return nil
 	}
+
+	// Store transactions for this block
+	w.BlockTransactions = transactions
 
 	// If this is the first transaction block, initialize our state
 	if len(w.UserStates) == 0 {
@@ -200,7 +398,7 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, bl
 		// Fill remaining slots with dummy users
 		maxUsers := 1 << circuit.D2 // 2^10 = 1024 users
 		for i := existingPlayerCount; i < maxUsers; i++ {
-			nameInt := big.NewInt(int64(i))
+			nameInt := big.NewInt(int64(i + 1)) // Names start at 1
 			benInt := big.NewInt(0)
 			w.UserStates = append(w.UserStates, merkle.UserState{
 				Name: nameInt,
@@ -208,16 +406,32 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, bl
 			})
 		}
 
+		// Set the DummyUserIndex to the first dummy user
+		w.DummyUserIndex = existingPlayerCount
+		log.Printf("DummyUserIndex: %d", w.DummyUserIndex)
+
 		// Generate the initial Merkle root
 		initialRoot := merkle.BuildMerkleStates(w.UserStates)
 		// LatestRoot is the block number of the initial root
 		w.LatestRoot = 0
 		w.LatestRootHash = merkle.MerkleRootToBase64(initialRoot)
+
+		// Store the initial root in StateRoots
+		w.StateRoots = append(w.StateRoots, w.LatestRootHash)
+
 		log.Printf("Initialized state with %d users (%d existing, %d dummy), root: %s",
 			maxUsers, existingPlayerCount, maxUsers-existingPlayerCount, w.LatestRootHash)
 	}
 
-	// oldRoot := w.LatestRootHash
+	// Clear CircuitTransactions before processing new transactions
+	w.CircuitTransactions = []struct {
+		OldName    *big.Int
+		OldBalance *big.Int
+		NewName    *big.Int
+		BenChange  *big.Int
+		Siblings   []*big.Int
+		PathBits   []bool
+	}{}
 
 	// Process each transaction in the block
 	for i, tx := range transactions {
@@ -233,6 +447,7 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, bl
 
 		switch contractMethod {
 		case "CurrencyContract:CreatePlayer":
+			log.Printf("CreatePlayer transaction args: %v", tx.Args)
 			if len(tx.Args) < 2 {
 				log.Printf("Invalid CreatePlayer transaction: missing arguments")
 				continue
@@ -246,44 +461,57 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, bl
 			}
 			nameInt := big.NewInt(playerName)
 
-			// Find first dummy user (with name >= number of real users) and replace it
-			found := false
-			for i := range w.UserStates {
-				// Check if this is a "dummy" user (name is sequential and Ben is 0)
-				if w.UserStates[i].Ben.Cmp(big.NewInt(0)) == 0 &&
-					w.UserStates[i].Name.Cmp(big.NewInt(nameInt.Int64())) != 0 {
-
-					// Get old user state to generate proof
-					oldState := w.UserStates[i]
-
-					// Update user state
-					w.UserStates[i].Name = nameInt
-
-					// Generate Merkle proof for this update
-					oldStateHash := merkle.HashUserState(oldState)
-					proof, err := merkle.GenerateMerkleProof(w.UserStates, oldStateHash)
-					if err != nil {
-						log.Printf("Error generating Merkle proof: %v", err)
-						continue
-					}
-
-					// Compute new Merkle root
-					newRoot := merkle.UpdateMerkleRoot(proof, w.UserStates[i])
-					w.LatestRootHash = merkle.MerkleRootToBase64(newRoot)
-
-					// Save the proof
-					w.StateProofs = append(w.StateProofs, *proof)
-					w.StateRoots = append(w.StateRoots, w.LatestRootHash)
-
-					found = true
-					log.Printf("Created new player with name %s in slot %d", nameInt.String(), i)
-					break
-				}
-			}
-
-			if !found {
+			// Check if dummy user slots are available
+			if w.DummyUserIndex >= len(w.UserStates) {
 				log.Printf("No available slots for new player")
+				continue
 			}
+
+			dummyIndex := w.DummyUserIndex
+			if dummyIndex >= len(w.UserStates) {
+				log.Printf("No available slots for new player")
+				continue
+			}
+
+			// Get old state and generate proof *before* update
+			oldState := w.UserStates[dummyIndex]
+			oldStateHash := merkle.HashUserState(oldState)
+			proof, err := merkle.GenerateMerkleProof(w.UserStates, oldStateHash)
+			if err != nil {
+				log.Printf("Error generating Merkle proof: %v", err)
+				continue
+			}
+
+			// Now update the state
+			w.UserStates[dummyIndex].Name = nameInt // Ben remains 0
+			w.DummyUserIndex++
+
+			// Compute new root
+			newRoot := merkle.UpdateMerkleRoot(proof, w.UserStates[dummyIndex])
+			w.LatestRootHash = merkle.MerkleRootToBase64(newRoot)
+
+			// Store proof and root
+			w.StateProofs = append(w.StateProofs, *proof)
+			w.StateRoots = append(w.StateRoots, w.LatestRootHash)
+
+			// Prepare circuit transaction
+			w.CircuitTransactions = append(w.CircuitTransactions, struct {
+				OldName    *big.Int
+				OldBalance *big.Int
+				NewName    *big.Int
+				BenChange  *big.Int
+				Siblings   []*big.Int
+				PathBits   []bool
+			}{
+				OldName:    oldState.Name,
+				OldBalance: oldState.Ben,
+				NewName:    nameInt,
+				BenChange:  big.NewInt(0),
+				Siblings:   proof.Siblings,
+				PathBits:   proof.PathBits,
+			})
+
+			log.Printf("Created new player with name %s in slot %d", nameInt.String(), dummyIndex)
 
 		case "CurrencyContract:RecordBankTransaction":
 			// For RecordBankTransaction, just acknowledge it
@@ -316,18 +544,11 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, bl
 			// Convert to a big.Int (assuming 3 decimal places precision)
 			benInt := big.NewInt(benAmount)
 
-			// Find the user to update
 			found := false
 			for i := range w.UserStates {
 				if w.UserStates[i].Name.Cmp(nameInt) == 0 {
-					// Get old state to generate proof
+					// Get old state and generate proof *before* update
 					oldState := w.UserStates[i]
-
-					// Update user state (add BEN to current balance)
-					newBen := new(big.Int).Add(w.UserStates[i].Ben, benInt)
-					w.UserStates[i].Ben = newBen
-
-					// Generate Merkle proof for this update
 					oldStateHash := merkle.HashUserState(oldState)
 					proof, err := merkle.GenerateMerkleProof(w.UserStates, oldStateHash)
 					if err != nil {
@@ -335,13 +556,34 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, bl
 						continue
 					}
 
-					// Compute new Merkle root
+					// Now update the state
+					newBen := new(big.Int).Add(oldState.Ben, benInt)
+					w.UserStates[i].Ben = newBen
+
+					// Compute new root
 					newRoot := merkle.UpdateMerkleRoot(proof, w.UserStates[i])
 					w.LatestRootHash = merkle.MerkleRootToBase64(newRoot)
 
-					// Save the proof
+					// Store proof and root
 					w.StateProofs = append(w.StateProofs, *proof)
 					w.StateRoots = append(w.StateRoots, w.LatestRootHash)
+
+					// Prepare circuit transaction
+					w.CircuitTransactions = append(w.CircuitTransactions, struct {
+						OldName    *big.Int
+						OldBalance *big.Int
+						NewName    *big.Int
+						BenChange  *big.Int
+						Siblings   []*big.Int
+						PathBits   []bool
+					}{
+						OldName:    oldState.Name,
+						OldBalance: oldState.Ben,
+						NewName:    nameInt,
+						BenChange:  benInt,
+						Siblings:   proof.Siblings,
+						PathBits:   proof.PathBits,
+					})
 
 					found = true
 					log.Printf("Updated player %s balance by %s BEN to %s",
@@ -355,6 +597,7 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData, bl
 			}
 
 		default:
+			// No need to throw error here, just log it
 			log.Printf("Unknown contract method: %s", contractMethod)
 		}
 	}
@@ -512,4 +755,24 @@ func commitMerkleRoot(contract *client.Contract, blockNumber, merkleRoot string)
 	}
 
 	log.Printf("*** Transaction committed successfully\n")
+}
+
+// serializeProof converts a groth16.Proof to a byte slice
+func serializeProof(proof groth16.Proof) ([]byte, error) {
+	// Use the json package for serialization
+	proofBytes, err := json.Marshal(proof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal proof to JSON: %w", err)
+	}
+	return proofBytes, nil
+}
+
+// deserializeProof converts a byte slice back to a groth16.Proof
+func deserializeProof(proofBytes []byte) (groth16.Proof, error) {
+	var proof groth16.Proof
+	err := json.Unmarshal(proofBytes, &proof)
+	if err != nil {
+		return proof, fmt.Errorf("failed to unmarshal proof from JSON: %w", err)
+	}
+	return proof, nil
 }
