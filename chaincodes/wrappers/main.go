@@ -7,11 +7,12 @@ import (
 
 	"github.com/weids-dev/benchains/chaincodes/wrappers/currency"
 	"github.com/weids-dev/benchains/chaincodes/wrappers/plasma"
+	"github.com/weids-dev/benchains/chaincodes/wrappers/zk"
 )
 
 func main() {
 	// Initialize both contracts
-	chaincode, err := contractapi.NewChaincode(&currency.CurrencyContract{}, &plasma.PlasmaContract{})
+	chaincode, err := contractapi.NewChaincode(&currency.CurrencyContract{}, &plasma.PlasmaContract{}, &zk.ZKContract{})
 	// chaincode, err := contractapi.NewChaincode(&currency.CurrencyContract{})
 	if err != nil {
 		log.Panicf("Error creating chaincode: %v", err)

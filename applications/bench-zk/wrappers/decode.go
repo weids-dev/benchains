@@ -222,15 +222,6 @@ func extractTransaction(payload map[string]interface{}) ([]string, error) {
 	return args, nil
 }
 
-// Format JSON data
-func formatJSON(data []byte) string {
-	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, data, "", "  "); err != nil {
-		panic(fmt.Errorf("failed to parse JSON: %w", err))
-	}
-	return prettyJSON.String()
-}
-
 // Submit transaction, passing in the wrong number of arguments ,expected to throw an error containing details of any error responses from the smart contract.
 func errorHandling(contract *client.Contract, err error) {
 	switch err := err.(type) {
@@ -265,4 +256,22 @@ func errorHandling(contract *client.Contract, err error) {
 			}
 		}
 	}
+}
+
+// prettyPrintStateRoots parses and prints the state roots in a readable format
+func prettyPrintStateRoots(stateRootsJSON string) {
+	var stateRoots []map[string]string
+	err := json.Unmarshal([]byte(stateRootsJSON), &stateRoots)
+	if err != nil {
+		log.Printf("Failed to unmarshal state roots JSON: %v", err)
+		return
+	}
+
+	log.Println("Current State Roots on Layer 1:")
+	log.Println("Block Number | State Root")
+	log.Println("-------------|------------")
+	for _, root := range stateRoots {
+		log.Printf("%12s | %s", root["BlockNumber"], root["StateRoot"])
+	}
+	log.Println("-----------------------------")
 }

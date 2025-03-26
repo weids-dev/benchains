@@ -27,7 +27,7 @@ const (
 	B = 32   // Batch size
 
 	D2 = 10 // ProofMerkleCircuit: Number of Leaves would be 2^10 = 1024
-	B2 = 30 // Number of transactions in the batch
+	B2 = 32 // Number of transactions in the batch
 )
 
 // DepositCircuit enforces that:

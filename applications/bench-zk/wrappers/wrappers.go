@@ -2,7 +2,9 @@
 package wrappers
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -129,7 +131,92 @@ func (w *Wrappers) Close() error {
 	return nil
 }
 
+// initializeUserStates initializes the UserStates array with existing players from Layer 2 and dummy users.
+func (w *Wrappers) initializeUserStates() error {
+	if len(w.UserStates) > 0 {
+		return nil // Already initialized
+	}
+
+	// Get all players from Layer 2
+	currencyContract := w.Gw2.Gateway.GetNetwork(w.Gw2.ChannelName).GetContract(w.Gw2.ChaincodeName)
+	evaluateResult, err := currencyContract.EvaluateTransaction("CurrencyContract:GetAllPlayers")
+	if err != nil {
+		return fmt.Errorf("failed to get players: %w", err)
+	}
+
+	var players []*gateway.Player
+	if len(evaluateResult) > 0 {
+		if err := json.Unmarshal(evaluateResult, &players); err != nil {
+			return fmt.Errorf("failed to unmarshal players: %w", err)
+		}
+	}
+
+	// Initialize UserStates with existing players
+	for _, player := range players {
+		balanceInt := int64(player.Balance * 1000) // Assuming 3 decimal places
+		nameInt := big.NewInt(player.ID)
+		benInt := big.NewInt(balanceInt)
+		w.UserStates = append(w.UserStates, merkle.UserState{
+			Name: nameInt,
+			Ben:  benInt,
+		})
+	}
+
+	// Fill remaining slots with dummy users
+	maxUsers := 1 << circuit.D2 // 2^D2 users
+	for i := len(players); i < maxUsers; i++ {
+		nameInt := big.NewInt(int64(i + 1)) // Names start at 1
+		benInt := big.NewInt(0)
+		w.UserStates = append(w.UserStates, merkle.UserState{
+			Name: nameInt,
+			Ben:  benInt,
+		})
+	}
+
+	// Set DummyUserIndex
+	w.DummyUserIndex = len(players)
+
+	// Compute initial root
+	initialRoot := merkle.BuildMerkleStates(w.UserStates)
+	w.LatestRootHash = merkle.MerkleRootToBase64(initialRoot)
+	w.LatestRoot = 0 // Initial block number
+
+	// Store the initial root in StateRoots
+	w.StateRoots = append(w.StateRoots, w.LatestRootHash)
+
+	log.Printf("Initialized state with %d users (%d existing, %d dummy), root: %s",
+		maxUsers, len(players), maxUsers-len(players), w.LatestRootHash)
+
+	return nil
+}
+
 func (w *Wrappers) Operate(ctx context.Context) error {
+	// Initialize user states
+	if err := w.initializeUserStates(); err != nil {
+		log.Printf("Failed to initialize user states: %v", err)
+		return err
+	}
+
+	// Serialize verifying key
+	var buf bytes.Buffer
+	vk := w.VerifyingKey.(groth16.VerifyingKey)
+	_, err := vk.WriteRawTo(&buf)
+	if err != nil {
+		log.Printf("Failed to serialize verifying key: %v", err)
+		return err
+	}
+	verifyingKeyBase64 := base64.StdEncoding.EncodeToString(buf.Bytes())
+
+	// Get ZKContract from Layer 1 gateway
+	zkContract := w.Gw1.Gateway.GetNetwork(w.Gw1.ChannelName).GetContract(w.Gw1.ChaincodeName)
+
+	// Call InitLedger on ZKContract
+	_, err = zkContract.SubmitTransaction("ZKContract:InitLedger", verifyingKeyBase64, w.LatestRootHash)
+	if err != nil {
+		log.Printf("Failed to initialize ZKContract: %v", err)
+		return err
+	}
+	log.Println("Initialized ZKContract successfully")
 	newestCommittedBlockNumber := uint64(1)   // Initially, no blocks committed
 	ticker := time.NewTicker(5 * time.Second) // 5 seconds interval
 	defer ticker.Stop()
@@ -177,26 +264,93 @@ func (w *Wrappers) Operate(ctx context.Context) error {
 
 					// Process transactions before computing Merkle root
 					err = w.processTransactions(transactions)
+
 					if err != nil {
 						fmt.Printf("Error processing transactions: %v\n", err)
 						continue
 					}
-					// TODO: If there is no transaction that will change the UserStates, skip the proof generation
 
 					// Generate ZK proof for this block
-					oldRoot, newRoot, proof, err := w.generateZKProof()
+					oldRoot, newRoot, proofBytes, err := w.generateZKProof()
 					if err != nil {
 						fmt.Printf("Error generating ZK proof: %v\n", err)
 						continue
 					}
 
-					log.Printf("Old root: %v, New root: %v", oldRoot, newRoot)
-					log.Printf("Proof: %v", proof)
+					// Get the current state root to use in case of no change
+					currentRootBase64 := w.LatestRootHash
+					zkContract := w.Gw1.Gateway.GetNetwork(w.Gw1.ChannelName).GetContract(w.Gw1.ChaincodeName)
 
-					// Commit the latest Merkle root with its proof to Layer 1
+					if proofBytes == nil {
+						// No state-changing transactions; commit the current root as unchanged
+						fmt.Printf("No state-changing transactions for block %d, committing unchanged state root\n", blockNumber)
+						_, err = zkContract.SubmitTransaction("ZKContract:CommitNoChange", snum, currentRootBase64)
+						if err != nil {
+							log.Printf("Failed to commit no-change state for block %s: %v", snum, err)
+							continue
+						}
+						log.Printf("Committed unchanged state root for block %s successfully", snum)
+					} else {
+						// State changed; verify and commit the proof
+						log.Printf("Old root: %v, New root: %v", oldRoot, newRoot)
+						log.Printf("Proof: %v", proofBytes)
 
-					// go w.commitRootWithProof(snum, w.LatestRootHash, proof, oldRoot, newRoot)
-					fmt.Printf("Committed Merkle root for block %d: %s with ZK proof\n", blockNumber, w.LatestRootHash)
+						proof, err := deserializeProof(proofBytes)
+						if err != nil {
+							log.Printf("Error deserializing proof: %v", err)
+							continue
+						}
+
+						var publicAssignment circuit.ProofMerkleCircuit
+						publicAssignment.OldRoot = oldRoot
+						publicAssignment.NewRoot = newRoot
+
+						publicWitness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
+						if err != nil {
+							log.Printf("Error creating public witness: %v", err)
+							continue
+						}
+
+						vk := w.VerifyingKey.(groth16.VerifyingKey)
+						err = groth16.Verify(proof, vk, publicWitness)
+						if err != nil {
+							log.Printf("Proof verification failed for block %d: %v", blockNumber, err)
+							continue
+						}
+						log.Printf("Proof verified successfully for block %d", blockNumber)
+
+						proofBase64 := base64.StdEncoding.EncodeToString(proofBytes)
+						oldRootBase64 := merkle.MerkleRootToBase64(oldRoot)
+						newRootBase64 := merkle.MerkleRootToBase64(newRoot)
+						_, err = zkContract.SubmitTransaction("ZKContract:CommitProof", snum, oldRootBase64, newRootBase64, proofBase64)
+						if err != nil {
+							log.Printf("Failed to commit proof for block %s: %v", snum, err)
+							continue
+						}
+						log.Printf("Committed proof for block %s successfully", snum)
+					}
+
+					// Step 1: Query the state root for the just-committed block and verify it
+					stateRootBytes, err := zkContract.EvaluateTransaction("ZKContract:QueryStateRoot", snum)
+					if err != nil {
+						log.Printf("Failed to query state root for block %s: %v", snum, err)
+						continue
+					}
+					committedStateRoot := string(stateRootBytes)
+					if committedStateRoot != w.LatestRootHash {
+						log.Printf("State root mismatch for block %s: expected %s, got %s", snum, w.LatestRootHash, committedStateRoot)
+						continue
+					}
+					log.Printf("State root for block %s verified: %s", snum, committedStateRoot)
+
+					// Step 2: Query all state roots and pretty-print them
+					allStateRootsBytes, err := zkContract.EvaluateTransaction("ZKContract:QueryAllStateRoots")
+					if err != nil {
+						log.Printf("Failed to query all state roots: %v", err)
+						continue
+					}
+					allStateRootsJSON := string(allStateRootsBytes)
+					prettyPrintStateRoots(allStateRootsJSON)
 				}
 				newestCommittedBlockNumber = newestBlockNumber
 			}
@@ -350,78 +504,6 @@ func (w *Wrappers) processTransactions(transactions []merkle.TransactionData) er
 
 	// Store transactions for this block
 	w.BlockTransactions = transactions
-
-	// If this is the first transaction block, initialize our state
-	if len(w.UserStates) == 0 {
-		// First try to get existing players from the blockchain
-		log.Println("Initializing user states from blockchain...")
-
-		// Call GetAllPlayers using the correct chaincode name from configuration
-		currencyContract := w.Gw2.Gateway.GetNetwork(w.Gw2.ChannelName).GetContract(w.Gw2.ChaincodeName)
-		evaluateResult, err := currencyContract.EvaluateTransaction("CurrencyContract:GetAllPlayers")
-		if err != nil {
-			log.Printf("Error getting players from blockchain: %v", err)
-			// Continue with empty array if we can't get players
-		}
-
-		// Unmarshal the JSON bytes into a slice of player structs
-		var players []*gateway.Player
-		if len(evaluateResult) > 0 {
-			if err := json.Unmarshal(evaluateResult, &players); err != nil {
-				log.Printf("Failed to unmarshal players: %v", err)
-				// Try direct string conversion as a fallback
-				playersStr := string(evaluateResult)
-				if err := json.Unmarshal([]byte(playersStr), &players); err != nil {
-					log.Printf("Failed again to unmarshal players: %v", err)
-				}
-			}
-		}
-
-		// Initialize user states with existing players first
-		log.Printf("Found %d existing players in blockchain", len(players))
-		existingPlayerCount := len(players)
-
-		// Add existing players to UserStates
-		for _, player := range players {
-			// Convert float64 balance to int64 (assuming 3 decimal places)
-			balanceInt := int64(player.Balance * 1000)
-
-			nameInt := big.NewInt(player.ID)
-			benInt := big.NewInt(balanceInt)
-			log.Printf("Find Existing Player ID: %d, Balance: %d", player.ID, balanceInt)
-			w.UserStates = append(w.UserStates, merkle.UserState{
-				Name: nameInt,
-				Ben:  benInt,
-			})
-		}
-
-		// Fill remaining slots with dummy users
-		maxUsers := 1 << circuit.D2 // 2^10 = 1024 users
-		for i := existingPlayerCount; i < maxUsers; i++ {
-			nameInt := big.NewInt(int64(i + 1)) // Names start at 1
-			benInt := big.NewInt(0)
-			w.UserStates = append(w.UserStates, merkle.UserState{
-				Name: nameInt,
-				Ben:  benInt,
-			})
-		}
-
-		// Set the DummyUserIndex to the first dummy user
-		w.DummyUserIndex = existingPlayerCount
-		log.Printf("DummyUserIndex: %d", w.DummyUserIndex)
-
-		// Generate the initial Merkle root
-		initialRoot := merkle.BuildMerkleStates(w.UserStates)
-		// LatestRoot is the block number of the initial root
-		w.LatestRoot = 0
-		w.LatestRootHash = merkle.MerkleRootToBase64(initialRoot)
-
-		// Store the initial root in StateRoots
-		w.StateRoots = append(w.StateRoots, w.LatestRootHash)
-
-		log.Printf("Initialized state with %d users (%d existing, %d dummy), root: %s",
-			maxUsers, existingPlayerCount, maxUsers-existingPlayerCount, w.LatestRootHash)
-	}
 
 	// Clear CircuitTransactions before processing new transactions
 	w.CircuitTransactions = []struct {
@@ -757,22 +839,22 @@ func commitMerkleRoot(contract *client.Contract, blockNumber, merkleRoot string)
 	log.Printf("*** Transaction committed successfully\n")
 }
 
-// serializeProof converts a groth16.Proof to a byte slice
+// serializeProof converts a groth16.Proof to a byte slice using Gnark's encoding
 func serializeProof(proof groth16.Proof) ([]byte, error) {
-	// Use the json package for serialization
-	proofBytes, err := json.Marshal(proof)
+	var buf bytes.Buffer
+	_, err := proof.WriteRawTo(&buf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal proof to JSON: %w", err)
+		return nil, fmt.Errorf("failed to serialize proof: %w", err)
 	}
-	return proofBytes, nil
+	return buf.Bytes(), nil
 }
 
-// deserializeProof converts a byte slice back to a groth16.Proof
+// deserializeProof converts a byte slice back to a groth16.Proof using Gnark's decoding
 func deserializeProof(proofBytes []byte) (groth16.Proof, error) {
-	var proof groth16.Proof
-	err := json.Unmarshal(proofBytes, &proof)
+	proof := groth16.NewProof(ecc.BN254) // Initialize a new proof for BN254 curve
+	_, err := proof.ReadFrom(bytes.NewReader(proofBytes))
 	if err != nil {
-		return proof, fmt.Errorf("failed to unmarshal proof from JSON: %w", err)
+		return nil, fmt.Errorf("failed to deserialize proof: %w", err)
 	}
 	return proof, nil
 }
