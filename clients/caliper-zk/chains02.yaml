@@ -1,0 +1,27 @@
+name: Caliper Benchmarks on Layer 2 ZK-Rollups
+
+version: "2.0.0"
+
+caliper:
+  blockchain: fabric
+
+channels:
+  # channelName of mychannel matches the name of the channel created by test network
+  - channelName: chains02
+    # the chaincodeIDs of all the fabric chaincodes in caliper-benchmarks
+    contracts:
+    - id: pasic
+
+organizations:
+  - mspid: org02MSP
+    # Identities come from cryptogen created material for test-network
+    identities:
+      certificates:
+      - name: 'User1'
+        clientPrivateKey:
+          path: '../../networks/fabric/certs/chains/peerOrganizations/org02.chains/users/User1@org02.chains/msp/keystore/priv_sk'
+        clientSignedCert:
+          path: '../../networks/fabric/certs/chains/peerOrganizations/org02.chains/users/User1@org02.chains/msp/signcerts/User1@org02.chains-cert.pem'
+    connectionProfile:
+      path: 'connection-org02.yaml'
+      discover: true

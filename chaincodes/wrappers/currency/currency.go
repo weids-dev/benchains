@@ -161,45 +161,42 @@ func (c *CurrencyContract) RecordBankTransaction(ctx contractapi.TransactionCont
 
 // ExchangeInGameCurrency allows users to exchange currency (USD to BEN or BEN to USD).
 func (c *CurrencyContract) ExchangeInGameCurrency(ctx contractapi.TransactionContextInterface, userID, benAmountChange int64) error {
+	fmt.Printf("Starting ExchangeInGameCurrency: userID=%d, benAmountChange=%d\n", userID, benAmountChange)
+
+	// Check exchange rate
+	if c.ExchangeRate == 0 {
+		return fmt.Errorf("exchange rate is zero")
+	}
+	fmt.Printf("ExchangeRate=%d\n", c.ExchangeRate)
+
 	// Get player
 	player, err := c.GetPlayer(ctx, userID)
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Player fetched: UsdBalance=%d, Balance=%d\n", player.UsdBalance, player.Balance)
 
-	// Positive benAmountChange means converting USD to BEN
-	// Negative benAmountChange means converting BEN to USD
 	if benAmountChange > 0 {
-		// Converting USD to BEN, calculate required USD
-		// BEN = USD * Rate, so USD = BEN / Rate
 		usdRequired := (benAmountChange * 1000) / c.ExchangeRate
+		fmt.Printf("usdRequired=%d\n", usdRequired)
 
-		// Check if player has enough USD
 		if player.UsdBalance < usdRequired {
 			return fmt.Errorf("insufficient USD balance: have %d, need %d", player.UsdBalance, usdRequired)
 		}
 
-		// Deduct USD and add BEN
 		player.UsdBalance -= usdRequired
 		player.Balance += benAmountChange
+		fmt.Printf("Updated: UsdBalance=%d, Balance=%d\n", player.UsdBalance, player.Balance)
 	} else {
-		// Convert BEN to USD
-		benToExchange := -benAmountChange // Make positive
-
-		// Check if player has enough BEN
+		benToExchange := -benAmountChange
 		if player.Balance < benToExchange {
 			return fmt.Errorf("insufficient BEN balance: have %d, need %d", player.Balance, benToExchange)
 		}
-
-		// Calculate USD to add
 		usdToAdd := (benToExchange * c.ExchangeRate) / 1000
-
-		// Add USD and deduct BEN
 		player.UsdBalance += usdToAdd
 		player.Balance -= benToExchange
 	}
 
-	// Update the player in the ledger
 	updatedPlayerJSON, err := json.Marshal(player)
 	if err != nil {
 		return err
@@ -210,6 +207,7 @@ func (c *CurrencyContract) ExchangeInGameCurrency(ctx contractapi.TransactionCon
 		return err
 	}
 
+	fmt.Printf("Writing player state: userID=%d\n", userID)
 	return ctx.GetStub().PutState(player_key, updatedPlayerJSON)
 }
 

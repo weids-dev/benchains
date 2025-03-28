@@ -1,0 +1,66 @@
+test:
+  workers:
+    number: 5
+  rounds:
+    - label: Init Ledger
+      txNumber: 1
+      rateControl:
+        type: fixed-rate
+        opts:
+          tps: 1
+      workload:
+        module: workloads/InitLedgerWorkload.js
+    - label: Create Players
+      txNumber: 1000
+      rateControl:
+        type: fixed-load
+        opts:
+          transactionLoad: 5
+      workload:
+        module: workloads/CreatePlayerWorkload.js
+    - label: Record Bank Transactions
+      txDuration: 60
+      rateControl:
+        type: fixed-load
+        opts:
+          transactionLoad: 5
+      workload:
+        module: workloads/RecordBankTransactionWorkload.js
+        arguments:
+          players: 1000
+    - label: Exchange Currencies
+      txDuration: 60
+      rateControl:
+        type: fixed-load
+        opts:
+          transactionLoad: 5
+      workload:
+        module: workloads/ExchangeCurrencyWorkload.js
+        arguments:
+          players: 1000
+    - label: Deposit then Exchange
+      txDuration: 60
+      rateControl:
+        type: fixed-load
+        opts:
+          transactionLoad: 5
+      workload:
+        module: workloads/DepositAndExchangeWorkload.js
+        arguments:
+          players: 1000
+    - label: Query Players
+      txDuration: 60
+      rateControl:
+        type: fixed-load
+        opts:
+          transactionLoad: 5
+      workload:
+        module: workloads/QueryPlayerWorkload.js
+        arguments:
+          players: 1000
+monitors:
+  resource:
+    - module: docker
+      options:
+        interval: 1
+        containers: ['all']

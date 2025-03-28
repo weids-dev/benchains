@@ -1,0 +1,25 @@
+---
+name: org${ORG}
+version: 1.0.0
+client:
+  organization: org${ORG}
+  connection:
+    timeout:
+      peer:
+        endorser: '300'
+organizations:
+  Org${ORG}:
+    mspid: org${ORG}MSP
+    peers:
+    - peer1.org${ORG}.chains
+    certificateAuthorities:
+    - ca.org${ORG}.chains
+peers:
+  peer1.org${ORG}.chains:
+    url: grpcs://localhost:${P0PORT}
+    tlsCACerts:
+      pem: |
+          ${PEERPEM}
+    grpcOptions:
+      ssl-target-name-override: peer1.org${ORG}.chains
+      hostnameOverride: peer1.org${ORG}.chains
